@@ -193,6 +193,7 @@ function setupEventListeners() {
             elements.btnReset.classList.add("hidden");
             elements.pasteArea.value = "";
             elements.sheetUrl.value = "";
+            document.body.classList.remove("dashboard-active");
             showToast("ล้างข้อมูลและรีเซ็ตพื้นที่ทำงานเรียบร้อยแล้ว", "info");
         }
     });

@@ -1810,9 +1810,28 @@ code {
    Responsive Web Design & Multi-device Support
    ========================================================================== */
 
+/* Hide load-demo button when dashboard is active to save header space */
+.dashboard-active #btn-load-demo {
+    display: none !important;
+}
+
 /* Mobile menu toggle button defaults to hidden */
 .mobile-menu-toggle-btn {
     display: none !important;
+}
+
+/* Responsive Toast notifications on small phones */
+@media (max-width: 480px) {
+    .toast-container {
+        left: 16px;
+        right: 16px;
+        top: 16px;
+    }
+    .toast {
+        min-width: 0;
+        width: 100%;
+        max-width: none;
+    }
 }
 
 /* Sidebar Backdrop Overlay default styling */
