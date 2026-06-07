@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReqVibe // ระบบวิเคราะห์และจัดกลุ่มความต้องการระบบ</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="ระบบวิเคราะห์และจัดกลุ่มความต้องการ (Requirements) ผ่านบอร์ดจำลองและการลากวาง จัดกลุ่มความต้องการจาก Google Sheets และไฟล์ Excel/CSV">
+    <meta name="keywords" content="วิเคราะห์ความต้องการ, จัดระเบียบ backlog, จัดโมดูลระบบ, google sheets, requirements analysis, backlog grouper">
+    
+    <!-- Google Fonts (Prompt Optimized for Thai) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+    <div class="app-container">
+        <!-- Toast Notification Area -->
+        <div id="toast-container" class="toast-container"></div>
+
+        <!-- App Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="url(#logo-grad)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#6366f1"/>
+                                <stop offset="1" stop-color="#06b6d4"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h1>Req<span>Vibe</span></h1>
+                <span class="badge">v1.0.0</span>
+            </div>
+            
+            <div class="header-actions">
+                <button id="btn-load-demo" class="btn btn-secondary">
+                    <i data-lucide="sparkles"></i> โหลดข้อมูลตัวอย่าง
+                </button>
+                <button id="btn-reset" class="btn btn-danger hidden">
+                    <i data-lucide="refresh-cw"></i> รีเซ็ตระบบ
+                </button>
+                <div class="theme-toggle" id="theme-toggle">
+                    <i data-lucide="moon" class="icon-moon"></i>
+                    <i data-lucide="sun" class="icon-sun"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Setup Screen (shown when no data is loaded) -->
+        <main id="setup-screen" class="main-content">
+            <div class="welcome-container">
+                <div class="welcome-header">
+                    <h2>ระบบวิเคราะห์และจัดกลุ่มความต้องการ (Requirements)</h2>
+                    <p>นำเข้าข้อมูลความต้องการหรือผลสำรวจของคุณจาก Google Sheets หรือ CSV เพื่อแสดงผลสถิติภาพรวม จำแนกประเภท และจัดกลุ่มโมดูลงานสัมภาษณ์ได้อย่างง่ายดายผ่านบอร์ดจำลองและการวิเคราะห์ข้อมูลอัจฉริยะ</p>
+                </div>
+
+                <div class="import-grid">
+                    <!-- Google Sheets Import Box -->
+                    <div class="import-card">
+                        <div class="card-icon sheet-icon">
+                            <i data-lucide="sheet"></i>
+                        </div>
+                        <h3>นำเข้าจาก Google Sheets</h3>
+                        <p>วางลิงก์สเปรดชีต Google Sheet ของคุณ โดยตรวจสอบให้แน่ใจว่าได้เปิดสิทธิ์การเข้าถึงเป็น <strong>"ทุกคนที่มีลิงก์สามารถดูได้" (Anyone with the link can view)</strong></p>
+                        
+                        <div class="input-group">
+                            <input type="text" id="sheet-url" placeholder="https://docs.google.com/spreadsheets/d/.../edit" aria-label="Google Sheet URL">
+                            <button id="btn-import-sheet" class="btn btn-primary">
+                                <span>ดึงข้อมูล</span>
+                                <i data-lucide="arrow-right"></i>
+                            </button>
+                        </div>
+                        
+                        <details class="help-details">
+                            <summary><i data-lucide="help-circle"></i> วิธีตั้งค่าเปิดแชร์ Google Sheet?</summary>
+                            <ol>
+                                <li>เปิดสเปรดชีต Google Sheet ของคุณ</li>
+                                <li>คลิกปุ่มสีน้ำเงิน <strong>"แชร์" (Share)</strong> ที่มุมขวาบน</li>
+                                <li>ภายใต้ <em>"การเข้าถึงทั่วไป" (General Access)</em> ให้เปลี่ยนจาก "จำกัดสิทธิ์" เป็น <strong>"ทุกคนที่มีลิงก์" (Anyone with the link)</strong></li>
+                                <li>ตรวจสอบให้แน่ใจว่าสิทธิ์ของบทบาทตั้งเป็น <strong>"ผู้มีสิทธิ์อ่าน" (Viewer)</strong></li>
+                                <li>คัดลอก URL ด้านบนเบราว์เซอร์มาวางในกล่องข้อความข้างบน</li>
+                            </ol>
+                        </details>
+                    </div>
+
+                    <!-- File Upload Box -->
+                    <div class="import-card">
+                        <div class="card-icon file-icon">
+                            <i data-lucide="file-up"></i>
+                        </div>
+                        <h3>อัปโหลดไฟล์ Excel / CSV</h3>
+                        <p>ลากและวางไฟล์สเปรดชีต <code>.csv</code> ที่ส่งออกจาก Google Sheets หรือไฟล์ฟอร์มคำตอบ (แบบฟอร์ม 1.csv) แล้วนำมาอัปโหลดที่นี่</p>
+                        
+                        <div class="drop-zone" id="drop-zone">
+                            <i data-lucide="upload-cloud"></i>
+                            <p>ลากไฟล์ CSV มาวางที่นี่ หรือ <span>คลิกเพื่อเลือกไฟล์</span></p>
+                            <input type="file" id="file-input" accept=".csv" class="hidden">
+                        </div>
+                    </div>
+
+                    <!-- Manual Paste / TSV Box -->
+                    <div class="import-card full-width">
+                        <div class="card-icon paste-icon">
+                            <i data-lucide="copy"></i>
+                        </div>
+                        <h3>คัดลอกและวางข้อมูลเซลล์โดยตรง</h3>
+                        <p>หากคุณไม่ต้องการตั้งค่าแชร์ไฟล์เป็นสาธารณะ คุณสามารถคัดลอกเซลล์ข้อมูลทั้งหมดจาก Excel หรือ Google Sheets (Ctrl+C / Cmd+C) แล้วนำมาวางลงในช่องด้านล่างได้ทันที ระบบจะสกัดคอลัมน์ให้อัตโนมัติ!</p>
+                        
+                        <textarea id="paste-area" placeholder="วางข้อมูลสเปรดชีตที่นี่... (เช่น คอลัมน์ รหัส, หัวข้อ, รายละเอียด, ความกังวล, หรือผลลัพธ์ผลสำรวจ)" aria-label="Pasted table data"></textarea>
+                        
+                        <div class="card-actions">
+                            <button id="btn-parse-paste" class="btn btn-secondary">
+                                <i data-lucide="clipboard-list"></i> ประมวลผลข้อมูลที่วาง
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Dashboard Screen (shown after data is loaded) -->
+        <div id="dashboard-screen" class="dashboard-wrapper hidden">
+            <!-- Sidebar Navigation -->
+            <aside class="dashboard-sidebar">
+                <nav class="sidebar-nav">
+                    <button class="nav-item active" data-tab="analytics">
+                        <i data-lucide="pie-chart"></i>
+                        <span>แดชบอร์ดหลัก</span>
+                    </button>
+                    <button class="nav-item" data-tab="tabular">
+                        <i data-lucide="table"></i>
+                        <span>ตารางความต้องการ</span>
+                    </button>
+                    <button class="nav-item" data-tab="grouping">
+                        <i data-lucide="columns"></i>
+                        <span>บอร์ดจัดกลุ่ม</span>
+                    </button>
+                    <button class="nav-item" data-tab="export">
+                        <i data-lucide="download"></i>
+                        <span>ส่งออกรายงาน</span>
+                    </button>
+                    <button class="nav-item" data-tab="fnanalysis">
+                        <i data-lucide="clipboard-list"></i>
+                        <span>วิเคราะห์ FN/NF & Top 10</span>
+                    </button>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="data-source-info">
+                        <div class="info-label">แหล่งข้อมูลที่เชื่อมต่อ</div>
+                        <div id="source-name" class="info-value">สเปรดชีตนำเข้า</div>
+                        <div id="source-count" class="info-sub">0 รายการถูกนำเข้า</div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Panel -->
+            <main class="dashboard-main-content">
+                
+                <!-- TAB 1: ANALYTICS -->
+                <section id="tab-analytics" class="tab-panel active">
+                    <div class="panel-header">
+                        <h2>แดชบอร์ดวิเคราะห์และสถิติ</h2>
+                        <p>ข้อมูลภาพรวม สัดส่วนระดับความสำคัญ สถานะการทำงาน และระบบการจัดกลุ่มข้อมูลสำรวจอัจฉริยะ</p>
+                    </div>
+
+                    <!-- Stat Cards -->
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon bg-indigo">
+                                <i data-lucide="list-todo"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">ความต้องการทั้งหมด</span>
+                                <span id="stat-total" class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-emerald">
+                                <i data-lucide="folder-check"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">ระบุกลุ่มแล้ว</span>
+                                <span id="stat-grouped" class="stat-value">0</span>
+                                <span id="stat-grouped-pct" class="stat-sub">0% ของทั้งหมด</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-amber">
+                                <i data-lucide="alert-circle"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">ระดับความสำคัญสูง</span>
+                                <span id="stat-high-priority" class="stat-value">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon bg-cyan">
+                                <i data-lucide="check-circle-2"></i>
+                            </div>
+                            <div class="stat-content">
+                                <span class="stat-title">เสร็จสมบูรณ์ / ยินยอม</span>
+                                <span id="stat-completed" class="stat-value">0</span>
+                                <span id="stat-completed-pct" class="stat-sub">0% ของทั้งหมด</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="charts-grid">
+                        <div class="chart-container-card">
+                            <h3>การแจกแจงระดับความสำคัญ / กลุ่มผู้ใช้</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-priority"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-container-card">
+                            <h3>สัดส่วนสถานะการดำเนินงาน / การใช้ AI</h3>
+                            <div class="chart-wrapper">
+                                <canvas id="chart-status"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-container-card full-width">
+                            <h3>สัดส่วนความต้องการแยกตามโมดูลระบบ / ฟีเจอร์ที่ต้องการ</h3>
+                            <div class="chart-wrapper tall">
+                                <canvas id="chart-groups"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights and Suggestions -->
+                    <div class="insights-container">
+                        <div class="insights-header">
+                            <div class="title-with-icon">
+                                <i data-lucide="cpu" class="text-indigo animate-pulse"></i>
+                                <h3>การวิเคราะห์ข้อมูลความต้องการอัจฉริยะ</h3>
+                            </div>
+                            <button id="btn-run-analysis" class="btn btn-indigo">
+                                <i data-lucide="sparkles"></i> วิเคราะห์และจัดกลุ่มอัตโนมัติ
+                            </button>
+                        </div>
+                        
+                        <div id="ai-suggestion-box" class="insight-placeholder">
+                            <i data-lucide="brain-circuit"></i>
+                            <p>คลิก "วิเคราะห์และจัดกลุ่มอัตโนมัติ" เพื่อประมวลผลข้อความความต้องการหรือปัญหาหลักของผู้ตอบแบบสอบถาม อัลกอริทึมจะสกัดคีย์เวิร์ด (เช่น "ความมั่นใจ", "ภาษาอังกฤษ", "การให้ feedback", "ระบบจำลอง") และเสนอแนวทางการจัดกลุ่มให้คุณอย่างเป็นระบบ</p>
+                        </div>
+                        
+                        <div id="ai-results-box" class="ai-results hidden">
+                            <div id="ai-insights-summary" class="insight-summary-card">
+                                <!-- Dynamic content -->
+                            </div>
+                            <div class="ai-suggestions-list-wrapper">
+                                <h4>แนวทางการดำเนินการจัดกลุ่มที่แนะนำ</h4>
+                                <div id="ai-suggestions-list" class="suggestions-list">
+                                    <!-- Dynamic suggestions -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 2: TABULAR VIEW -->
+                <section id="tab-tabular" class="tab-panel">
+                    <div class="panel-header">
+                        <div class="header-left">
+                            <h2>รายการความต้องการทั้งหมด</h2>
+                            <p>แสดงตารางรายละเอียดทั้งหมด คุณสามารถค้นหา ตัวกรอง จัดเรียงลำดับ หรือเพิ่มและลบรายการได้</p>
+                        </div>
+                        <button id="btn-add-requirement" class="btn btn-primary">
+                            <i data-lucide="plus"></i> เพิ่มความต้องการ
+                        </button>
+                    </div>
+
+                    <!-- Table Filters -->
+                    <div class="table-filters">
+                        <div class="search-box">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="search-input" placeholder="ค้นหาตามรหัส หัวข้อ หรือรายละเอียดความกังวล...">
+                        </div>
+                        <div class="filter-dropdowns">
+                            <div class="select-wrapper">
+                                <select id="filter-group">
+                                    <option value="">ทุกกลุ่ม / โมดูล</option>
+                                </select>
+                            </div>
+                            <div class="select-wrapper">
+                                <select id="filter-priority">
+                                    <option value="">ทุกระดับความสำคัญ</option>
+                                    <option value="High">สูง (High)</option>
+                                    <option value="Medium">ปานกลาง (Medium)</option>
+                                    <option value="Low">ต่ำ (Low)</option>
+                                </select>
+                            </div>
+                            <div class="select-wrapper">
+                                <select id="filter-status">
+                                    <option value="">ทุกสถานะการดำเนินงาน</option>
+                                    <option value="To Do">ยังไม่ได้เริ่ม (To Do)</option>
+                                    <option value="In Progress">กำลังทำ (In Progress)</option>
+                                    <option value="Done">เสร็จสิ้น (Done)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Table Container -->
+                    <div class="table-container">
+                        <table id="requirements-table">
+                            <thead>
+                                <tr>
+                                    <th data-sort="id">รหัส <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="title">หัวข้อ <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="description">รายละเอียดความต้องการ / คำตอบสรุป <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="group">กลุ่มโมดูล <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="priority">ความสำคัญ <i data-lucide="chevrons-up-down"></i></th>
+                                    <th data-sort="status">สถานะ <i data-lucide="chevrons-up-down"></i></th>
+                                    <th class="actions-header">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requirements-tbody">
+                                <!-- Dynamic rows -->
+                            </tbody>
+                        </table>
+                        
+                        <div id="table-empty" class="table-empty hidden">
+                            <i data-lucide="search-code"></i>
+                            <p>ไม่พบความต้องการที่ตรงตามตัวกรองการค้นหา</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 3: GROUP & SORT -->
+                <section id="tab-grouping" class="tab-panel">
+                    <div class="panel-header">
+                        <div class="header-left">
+                            <h2>การจัดระเบียบและบอร์ดแยกกลุ่มความต้องการ</h2>
+                            <p>ลากการ์ดความต้องการไปวางลงในคอลัมน์โมดูลทางขวาเพื่อจัดกลุ่ม ดับเบิลคลิกการ์ดเพื่อเข้าไปแก้ไขรายละเอียดได้ทันที</p>
+                        </div>
+                        <div class="header-actions-row">
+                            <button id="btn-create-group" class="btn btn-secondary">
+                                <i data-lucide="folder-plus"></i> สร้างกลุ่มใหม่
+                            </button>
+                            <button id="btn-auto-group" class="btn btn-indigo">
+                                <i data-lucide="wand2"></i> นำการจัดกลุ่มอัจฉริยะไปใช้
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="kanban-layout">
+                        <!-- Left Panel: Unassigned / Backlog Pool -->
+                        <div class="backlog-pool-wrapper">
+                            <div class="backlog-header">
+                                <div class="title-with-badge">
+                                    <h3>ยังไม่ได้จัดกลุ่ม (Backlog)</h3>
+                                    <span id="backlog-count" class="counter-badge">0</span>
+                                </div>
+                                <p>ลากการ์ดจากจุดนี้ไปวางในโมดูลที่ต้องการ</p>
+                            </div>
+                            <div id="backlog-cards" class="backlog-cards-container drop-target-column" data-group="Unassigned">
+                                <!-- Dynamic unassigned requirement cards -->
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Dynamic Group Columns -->
+                        <div class="kanban-board-scroller">
+                            <div id="kanban-board" class="kanban-board">
+                                <!-- Dynamic group columns generated here -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 4: EXPORT & REPORT -->
+                <section id="tab-export" class="tab-panel">
+                    <div class="panel-header">
+                        <h2>ระบบจัดเตรียมเอกสารและรายงานส่งออก</h2>
+                        <p>รวบรวมความต้องการที่จัดเรียงเรียบร้อยแล้วไปแปลงเป็นโครงสร้างเอกสาร หรือไฟล์สเปรดชีตเพื่อนำเข้ากลับระบบภายนอก</p>
+                    </div>
+
+                    <div class="export-grid">
+                        <!-- Left Actions -->
+                        <div class="export-actions-card">
+                            <h3>เลือกรูปแบบที่ต้องการส่งออก</h3>
+                            <p>สร้างโครงสร้างรายงานสำหรับเก็บใน README หรือใช้เป็นเนื้อหาสำหรับจัดหมวดหมู่ระบบส่งผู้พัฒนา</p>
+                            
+                            <div class="export-options-list">
+                                <button id="btn-export-md" class="export-option-btn active" data-format="markdown">
+                                    <i data-lucide="file-text" class="text-indigo"></i>
+                                    <div class="option-details">
+                                        <h4>โครงร่างระบบความต้องการ (SRS Markdown)</h4>
+                                        <p>เอกสาร Markdown จัดหัวข้อแยกโมดูลเพื่อนำไปใช้ใน README หรือ Wiki โครงการ</p>
+                                    </div>
+                                </button>
+                                
+                                <button id="btn-export-csv" class="export-option-btn" data-format="csv">
+                                    <i data-lucide="file-spreadsheet" class="text-emerald"></i>
+                                    <div class="option-details">
+                                        <h4>ไฟล์ตารางข้อมูลสเปรดชีต (CSV Spreadsheet)</h4>
+                                        <p>ตารางคั่นด้วยคอมมาพร้อมโมดูลที่เพิ่มขึ้นมาใหม่ เหมาะสำหรับการส่งนำกลับไปยัง Google Sheets</p>
+                                    </div>
+                                </button>
+                                
+                                <button id="btn-export-json" class="export-option-btn" data-format="json">
+                                    <i data-lucide="file-json" class="text-amber"></i>
+                                    <div class="option-details">
+                                        <h4>โครงสร้างข้อมูลออบเจกต์ (Raw JSON)</h4>
+                                        <p>ข้อมูลจำแนกกลุ่มแบบลำดับชั้นสำหรับนักพัฒนาระบบนำไปเก็บในฐานข้อมูลหรือประมวลผล</p>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <div class="action-buttons-container">
+                                <button id="btn-download-export" class="btn btn-primary btn-large">
+                                    <i data-lucide="download"></i> ดาวน์โหลดไฟล์เอกสาร
+                                </button>
+                                <button id="btn-copy-export" class="btn btn-secondary">
+                                    <i data-lucide="copy"></i> คัดลอกไปยังคลิปบอร์ด
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right Preview Window -->
+                        <div class="export-preview-card">
+                            <div class="preview-header">
+                                <h3>ตัวอย่างเนื้อหาไฟล์</h3>
+                                <span id="preview-filename">requirements_specification.md</span>
+                            </div>
+                            <div class="preview-content-wrapper">
+                                <pre><code id="export-preview" class="hljs">กำลังสร้างเนื้อหาตัวอย่าง...</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 5: FN/NF ANALYSIS & TOP 10 -->
+                <section id="tab-fnanalysis" class="tab-panel">
+                    <div class="panel-header">
+                        <div class="header-titles">
+                            <h2>การวิเคราะห์ Functional & Non-Functional</h2>
+                            <p>สกัดและจำแนกความต้องการเชิงระบบ พร้อมจัดลำดับความสำคัญเร่งด่วน 10 อันดับแรก</p>
+                        </div>
+                        <div class="header-actions-row">
+                            <div class="search-box">
+                                <i data-lucide="search"></i>
+                                <input type="text" id="fn-search-input" placeholder="ค้นหาความต้องการ...">
+                            </div>
+                            <button id="btn-export-fnanalysis" class="btn btn-secondary">
+                                <i data-lucide="download"></i>
+                                <span>ส่งออกรายงาน (MD)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="fnanalysis-container">
+                        <!-- Top 10 Urgency Section -->
+                        <div class="top-priorities-card">
+                            <div class="top-priorities-header">
+                                <div class="header-title-wrapper">
+                                    <i data-lucide="star" class="text-amber animate-pulse"></i>
+                                    <h3>ความต้องการเร่งด่วนสูงสุด 10 อันดับแรก (Top 10 Backlog)</h3>
+                                </div>
+                                <span class="badge bg-amber">ลำดับความสำคัญ 1 - 10</span>
+                            </div>
+                            <p class="section-desc">รายการข้อกำหนด/ผลตอบกลับที่ต้องแก้ไขอย่างเร่งด่วนที่สุดเพื่อปรับปรุงประสบการณ์ผู้ใช้งานและเตรียมพร้อมระบบ</p>
+                            
+                            <div class="top-priorities-list" id="top-priorities-list">
+                                <!-- Dynamic prioritized items -->
+                            </div>
+                        </div>
+
+                        <!-- FR & NFR Grid Layout -->
+                        <div class="fn-grid">
+                            <!-- Functional Requirements Column -->
+                            <div class="fn-card functional">
+                                <div class="fn-card-header">
+                                    <i data-lucide="cog" class="text-indigo"></i>
+                                    <div class="fn-title-area">
+                                        <h3>ข้อกำหนดเชิงฟังก์ชัน (Functional - FR)</h3>
+                                        <span id="count-fr" class="counter-badge bg-indigo">0</span>
+                                    </div>
+                                </div>
+                                <p class="fn-desc">ความสามารถของระบบและโมดูลการทำงานหลักที่ต้องพัฒนา (เช่น ระบบจำลอง สื่อสาร เสียงพ่น AI feedback)</p>
+                                
+                                <div id="functional-list" class="fn-list">
+                                    <!-- Dynamic functional requirements -->
+                                </div>
+                            </div>
+                            
+                            <!-- Non-Functional Requirements Column -->
+                            <div class="fn-card non-functional">
+                                <div class="fn-card-header">
+                                    <i data-lucide="shield-check" class="text-cyan"></i>
+                                    <div class="fn-title-area">
+                                        <h3>ข้อกำหนดที่ไม่ใช่เชิงฟังก์ชัน (Non-Functional - NFR)</h3>
+                                        <span id="count-nfr" class="counter-badge bg-cyan">0</span>
+                                    </div>
+                                </div>
+                                <p class="fn-desc">คุณสมบัติด้านเสถียรภาพ ประสิทธิภาพ ความถูกต้องของภาษา ความเป็นส่วนตัวของข้อมูล และค่าใช้จ่าย</p>
+                                
+                                <div id="non-functional-list" class="fn-list">
+                                    <!-- Dynamic non-functional requirements -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Requirement Edit Modal -->
+    <div id="requirement-modal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modal-title">แก้ไขรายละเอียดความต้องการ</h3>
+                <button id="btn-close-modal" class="btn-icon" aria-label="Close modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="requirement-form" onsubmit="return false;">
+                    <input type="hidden" id="req-idx">
+                    
+                    <div class="form-row">
+                        <div class="form-group size-small">
+                            <label for="req-id">รหัสความต้องการ *</label>
+                            <input type="text" id="req-id" required placeholder="REQ-001">
+                        </div>
+                        <div class="form-group size-large">
+                            <label for="req-name">หัวข้อความต้องการ / โปรไฟล์ผู้สอบ *</label>
+                            <input type="text" id="req-name" required placeholder="เช่น การพิสูจน์ตัวตนด้วย OTP">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="req-description">คำอธิบายรายละเอียดความต้องการ / ข้อมูลสรุปความเห็น</label>
+                        <textarea id="req-description" rows="4" placeholder="กรอกข้อมูลเกณฑ์การทดสอบ, ปัญหาที่พบ, ฟีเจอร์ที่ต้องการเพิ่มเติม..."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="req-group">กลุ่ม / โมดูลระบบ</label>
+                            <input type="text" id="req-group" placeholder="Unassigned" list="group-suggestions">
+                            <datalist id="group-suggestions">
+                                <!-- Dynamic suggestions -->
+                            </datalist>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="req-priority">ระดับความสำคัญ</label>
+                            <select id="req-priority">
+                                <option value="High">สูง (High)</option>
+                                <option value="Medium" selected>ปานกลาง (Medium)</option>
+                                <option value="Low">ต่ำ (Low)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="req-status">สถานะดำเนินงาน</label>
+                            <select id="req-status">
+                                <option value="To Do" selected>ยังไม่ได้เริ่ม (To Do)</option>
+                                <option value="In Progress">กำลังทำ (In Progress)</option>
+                                <option value="Done">เสร็จสิ้น (Done)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="modal-actions">
+                        <button type="button" id="btn-delete-req" class="btn btn-danger-text hidden">
+                            <i data-lucide="trash-2"></i> ลบรายการนี้
+                        </button>
+                        <div class="modal-actions-right">
+                            <button type="button" id="btn-cancel-req" class="btn btn-secondary">ยกเลิก</button>
+                            <button type="submit" id="btn-save-req" class="btn btn-primary">บันทึกข้อมูล</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Group Modal -->
+    <div id="group-modal" class="modal-overlay hidden">
+        <div class="modal-card modal-small">
+            <div class="modal-header">
+                <h3>สร้างกลุ่มโมดูลใหม่</h3>
+                <button id="btn-close-group-modal" class="btn-icon" aria-label="Close modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="group-form" onsubmit="return false;">
+                    <div class="form-group">
+                        <label for="new-group-name">ชื่อกลุ่มโมดูล *</label>
+                        <input type="text" id="new-group-name" required placeholder="เช่น ส่วนจัดการความมั่นใจ, การจัดการ Billing">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" id="btn-cancel-group" class="btn btn-secondary">ยกเลิก</button>
+                        <button type="submit" id="btn-save-group" class="btn btn-primary">สร้างกลุ่ม</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom JS Scripts -->
+    <script src="demo-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
