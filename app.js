@@ -33,6 +33,8 @@ const elements = {
     btnLoadDemo: document.getElementById("btn-load-demo"),
     btnReset: document.getElementById("btn-reset"),
     themeToggle: document.getElementById("theme-toggle"),
+    mobileMenuToggle: document.getElementById("mobile-menu-toggle"),
+    sidebarOverlay: document.getElementById("sidebar-overlay"),
     
     // Inputs & Setup Controls
     sheetUrl: document.getElementById("sheet-url"),
@@ -226,8 +228,23 @@ function setupEventListeners() {
         item.addEventListener("click", () => {
             const tabName = item.getAttribute("data-tab");
             switchTab(tabName);
+            document.body.classList.remove("sidebar-open");
         });
     });
+
+    // Mobile menu toggle
+    if (elements.mobileMenuToggle) {
+        elements.mobileMenuToggle.addEventListener("click", () => {
+            document.body.classList.toggle("sidebar-open");
+        });
+    }
+
+    // Mobile sidebar overlay backdrop click to close
+    if (elements.sidebarOverlay) {
+        elements.sidebarOverlay.addEventListener("click", () => {
+            document.body.classList.remove("sidebar-open");
+        });
+    }
 
     // AI suggestion click
     elements.btnRunAnalysis.addEventListener("click", runAIRequirementClustering);
@@ -756,6 +773,12 @@ function handlePasteParse() {
 
 // Global UI refresh (binds header counters & updates tabs if visible)
 function updateUI() {
+    if (state.requirements.length > 0) {
+        document.body.classList.add("dashboard-active");
+    } else {
+        document.body.classList.remove("dashboard-active");
+    }
+    
     elements.sourceNameDisplay.textContent = state.sourceName;
     elements.sourceCountDisplay.textContent = `นำเข้าข้อมูลแล้ว ${state.requirements.length} รายการ`;
     
@@ -1639,11 +1662,19 @@ function createRequirementCard(req) {
         </div>
     `;
 
-    // Double click to edit card
-    card.addEventListener("dblclick", () => {
-        const masterIdx = state.requirements.findIndex(r => r.id === req.id);
-        openRequirementModal(masterIdx);
-    });
+    // Double click to edit card (single click on touch devices)
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (isTouchDevice) {
+        card.addEventListener("click", () => {
+            const masterIdx = state.requirements.findIndex(r => r.id === req.id);
+            openRequirementModal(masterIdx);
+        });
+    } else {
+        card.addEventListener("dblclick", () => {
+            const masterIdx = state.requirements.findIndex(r => r.id === req.id);
+            openRequirementModal(masterIdx);
+        });
+    }
 
     return card;
 }

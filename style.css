@@ -1532,34 +1532,7 @@ code {
     background: var(--text-muted);
 }
 
-/* Responsive adjustments */
-@media (max-width: 1024px) {
-    .import-grid {
-        grid-template-columns: 1fr;
-    }
-    .import-card.full-width {
-        grid-column: span 1;
-    }
-    .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-    .charts-grid {
-        grid-template-columns: 1fr;
-    }
-    .chart-container-card.full-width {
-        grid-column: span 1;
-    }
-    .kanban-layout {
-        grid-template-columns: 1fr;
-        height: auto;
-    }
-    .backlog-pool-wrapper {
-        max-height: 300px;
-    }
-    .export-grid {
-        grid-template-columns: 1fr;
-    }
-}
+
 
 /* FN Analysis & Top 10 Layout */
 .fnanalysis-container {
@@ -1833,11 +1806,287 @@ code {
     height: 100%;
 }
 
+/* ==========================================================================
+   Responsive Web Design & Multi-device Support
+   ========================================================================== */
+
+/* Mobile menu toggle button defaults to hidden */
+.mobile-menu-toggle-btn {
+    display: none !important;
+}
+
+/* Sidebar Backdrop Overlay default styling */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 190;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+/* 1. Desktop & Large Screens (no changes needed, keep original) */
+
+/* 2. Tablet & Medium Screens (max-width: 1024px) */
 @media (max-width: 1024px) {
+    /* Header menu toggle display if dashboard is active */
+    .dashboard-active .mobile-menu-toggle-btn {
+        display: flex !important;
+        margin-right: 12px;
+    }
+
+    /* Collapsible Sidebar Navigation */
+    .dashboard-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        height: 100vh;
+        z-index: 200;
+        transform: translateX(-100%);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+    }
+    
+    .sidebar-open .dashboard-sidebar {
+        transform: translateX(0);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .sidebar-open .sidebar-overlay {
+        opacity: 1;
+        pointer-events: auto;
+    }
+
+    /* Dashboard main content occupies full screen width */
+    .dashboard-main-content {
+        padding: 24px;
+        width: 100%;
+        overflow-x: hidden;
+    }
+
+    /* Setup/Import screens grids */
+    .import-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .import-card.full-width {
+        grid-column: span 1;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .chart-container-card.full-width {
+        grid-column: span 1;
+    }
+
+    /* Kanban Board Layout stack and size control */
+    .kanban-layout {
+        display: flex;
+        flex-direction: column;
+        height: auto;
+        overflow: visible;
+        gap: 16px;
+    }
+    .backlog-pool-wrapper {
+        height: 320px;
+        min-height: 320px;
+        max-height: 320px;
+    }
+    .kanban-board-scroller {
+        height: 520px;
+    }
+    .kanban-board {
+        height: 100%;
+    }
+
+    /* Export Grid Stack */
+    .export-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    .export-preview-card {
+        height: 420px;
+    }
+
+    /* Functional & Non-Functional requirement grids */
     .fn-grid {
         grid-template-columns: 1fr;
+        gap: 20px;
     }
     .fn-card {
-        height: 500px;
+        height: 480px;
+    }
+}
+
+/* 3. Small Mobile Devices (max-width: 768px) */
+@media (max-width: 768px) {
+    body {
+        font-size: 0.875rem;
+    }
+
+    .main-content {
+        padding: 20px 16px;
+    }
+
+    .welcome-header h2 {
+        font-size: 1.75rem;
+    }
+    
+    .welcome-header p {
+        font-size: 0.95rem;
+    }
+
+    /* App Header button compact styling */
+    .app-header {
+        padding: 12px 16px;
+    }
+    .app-header .btn span {
+        display: none;
+    }
+    .app-header .btn {
+        padding: 8px;
+        width: 38px;
+        height: 38px;
+        border-radius: var(--radius-md);
+    }
+    .app-header .btn i {
+        margin: 0;
+    }
+    .logo-area h1 {
+        font-size: 1.15rem;
+    }
+    .logo-area .badge {
+        display: none; /* Hide version badge on mobile to save space */
+    }
+
+    /* AI suggestion panel controls */
+    .insights-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    .insights-header button {
+        width: 100%;
+    }
+
+    /* Table filters layout */
+    .table-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .search-box {
+        max-width: 100%;
+    }
+    .filter-dropdowns {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* Allow scrolling of table instead of truncating */
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table {
+        min-width: 700px; /* force scrollable table content */
+    }
+
+    /* Top 10 priorities and ranks */
+    .top-priorities-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .top-priorities-header .badge {
+        align-self: flex-start;
+    }
+    .priority-rank-item {
+        padding: 12px;
+        gap: 12px;
+    }
+    .rank-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .rank-badges-wrapper {
+        margin-left: 0;
+        margin-top: 4px;
+    }
+}
+
+/* 4. Very Small Phones (max-width: 576px) */
+@media (max-width: 576px) {
+    /* Setup input fields stacking */
+    .input-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .input-group button {
+        width: 100%;
+    }
+
+    /* Stats summary grid */
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    /* AI Suggestions items layout */
+    .suggestion-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .suggestion-item button {
+        align-self: flex-end;
+    }
+
+    /* Modals elements stacking */
+    .modal-card {
+        max-width: 95%;
+    }
+    .modal-body {
+        padding: 16px;
+    }
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+    .form-row .form-group.size-small {
+        flex: 1;
+    }
+    .modal-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .modal-actions-right {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .modal-actions-right button {
+        width: 100%;
+    }
+    .btn-delete-req {
+        text-align: center;
+        padding: 8px;
     }
 }
