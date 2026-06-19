@@ -21,7 +21,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom CSS -->
-  <link rel="stylesheet" crossorigin href="/assets/index-Byl8Rp5a.css">
+  <link rel="stylesheet" crossorigin href="/assets/index-D3EiqGZF.css">
 </head>
 <body class="dark-theme">
     <div class="app-container">
@@ -165,6 +165,10 @@
                         <i data-lucide="clipboard-list"></i>
                         <span>วิเคราะห์ FN/NF & Top 10</span>
                     </button>
+                    <button class="nav-item" data-tab="aichat">
+                        <i data-lucide="brain"></i>
+                        <span>ผู้ช่วย AI วิเคราะห์ระบบ</span>
+                    </button>
                 </nav>
 
                 <div class="sidebar-footer">
@@ -255,7 +259,12 @@
                         <div class="insights-header">
                             <div class="title-with-icon">
                                 <i data-lucide="cpu" class="text-indigo animate-pulse"></i>
-                                <h3>การวิเคราะห์ข้อมูลความต้องการอัจฉริยะ</h3>
+                                <div>
+                                    <h3>การวิเคราะห์ข้อมูลความต้องการอัจฉริยะ</h3>
+                                    <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 4px;">
+                                        💡 เชื่อมต่อ Gemini API Key ในแท็บ <strong>"ผู้ช่วย AI วิเคราะห์ระบบ"</strong> เพื่อเปิดใช้งาน AI ประมวลภาษาธรรมชาติจริง
+                                    </span>
+                                </div>
                             </div>
                             <button id="btn-run-analysis" class="btn btn-indigo">
                                 <i data-lucide="sparkles"></i> วิเคราะห์และจัดกลุ่มอัตโนมัติ
@@ -520,6 +529,160 @@
                                 
                                 <div id="non-functional-list" class="fn-list">
                                     <!-- Dynamic non-functional requirements -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- TAB 6: AI ASSISTANT CHAT & DEEP ANALYSIS -->
+                <section id="tab-aichat" class="tab-panel">
+                    <div class="panel-header">
+                        <div>
+                            <h2>ผู้ช่วย AI วิเคราะห์ระบบ (AI System Analyst)</h2>
+                            <p>ผูกระบบกับ Gemini API เพื่อวิเคราะห์ความต้องการเชิงลึก สกัด User Stories ออกแบบสถาปัตยกรรม และวิเคราะห์ปัญหาผู้ใช้จากผลสำรวจ</p>
+                        </div>
+                    </div>
+
+                    <!-- Gemini API Key Configurations -->
+                    <div class="api-settings-panel">
+                        <div class="form-row">
+                            <div class="form-group" style="flex: 1; margin: 0;">
+                                <label for="gemini-api-key" style="font-size: 0.8rem; margin-bottom: 4px; display: block; color: var(--text-muted);">
+                                    Gemini API Key 
+                                    <span style="font-weight: normal;">(เก็บไว้ในเบราว์เซอร์ของคุณอย่างปลอดภัย)</span>
+                                </label>
+                                <input type="password" id="gemini-api-key" placeholder="AIzaSy...">
+                            </div>
+                            <div class="form-group" style="width: 180px; margin: 0;">
+                                <label for="gemini-model" style="font-size: 0.8rem; margin-bottom: 4px; display: block; color: var(--text-muted);">โมเดล AI</label>
+                                <div class="select-wrapper" style="width: 100%;">
+                                    <select id="gemini-model" style="width: 100%; height: 38px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-main); font-size: 0.85rem; padding: 0 10px;">
+                                        <option value="gemini-3.5-flash" selected>Gemini 3.5 Flash (เร็วที่สุด & ใหม่สุด)</option>
+                                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (เร็ว)</option>
+                                        <option value="gemini-2.5-pro">Gemini 2.5 Pro (ฉลาดที่สุด)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-self: flex-end; margin-top: 18px;">
+                                <button id="btn-save-api-key" class="btn btn-primary" style="height: 38px; padding: 0 16px;">
+                                    <i data-lucide="key-round"></i> บันทึก Key
+                                </button>
+                                <button id="btn-clear-api-key" class="btn btn-danger hidden" style="height: 38px; padding: 0 16px; background-color: var(--color-danger); color: #fff;">
+                                    ลบ Key
+                                </button>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; margin-top: 4px;">
+                            <span id="api-key-status" class="api-status-badge disconnected">
+                                <i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> ยังไม่ได้เชื่อมต่อ Gemini API (ใช้ Heuristic จำลอง)
+                            </span>
+                            <a href="https://aistudio.google.com/" target="_blank" style="color: var(--color-primary); text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                                ขอรับ API Key ฟรีจาก Google AI Studio <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- AI Main Grid -->
+                    <div class="ai-chat-layout">
+                        <!-- Left Panel: Deep Analysis & Reports -->
+                        <div class="ai-card full-height">
+                            <div class="ai-result-panel">
+                                <h3>การวิเคราะห์เชิงระบบ (Deep System Analysis)</h3>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">เลือกฟังก์ชันการวิเคราะห์ข้อมูลความต้องการและคำสั่งสกัดข้อมูลระดับระบบ</p>
+                                
+                                <div class="ai-actions-grid" style="margin-top: 10px; margin-bottom: 20px;">
+                                    <button id="btn-ai-story-analysis" class="ai-action-card-btn">
+                                        <div class="icon-wrapper bg-indigo">
+                                            <i data-lucide="book-open"></i>
+                                        </div>
+                                        <h4>สกัด User Stories</h4>
+                                        <p>สร้าง User Stories พร้อมเกณฑ์การยอมรับ (Acceptance Criteria)</p>
+                                    </button>
+                                    <button id="btn-ai-architecture" class="ai-action-card-btn">
+                                        <div class="icon-wrapper bg-cyan">
+                                            <i data-lucide="network"></i>
+                                        </div>
+                                        <h4>ออกแบบ Architecture</h4>
+                                        <p>จำลองฐานข้อมูล (Database Schema) และสถาปัตยกรรมระบบ</p>
+                                    </button>
+                                    <button id="btn-ai-grouping" class="ai-action-card-btn">
+                                        <div class="icon-wrapper bg-violet">
+                                            <i data-lucide="folder-git-2"></i>
+                                        </div>
+                                        <h4>ประมวลผลจัดกลุ่มบอร์ด</h4>
+                                        <p>วิเคราะห์ความเชื่อมโยงจัดกลุ่มโมดูลและจัดระเบียบ Kanban</p>
+                                    </button>
+                                    <button id="btn-ai-survey" class="ai-action-card-btn">
+                                        <div class="icon-wrapper bg-pink">
+                                            <i data-lucide="bar-chart-3"></i>
+                                        </div>
+                                        <h4>สรุปผลสำรวจผู้ตอบ</h4>
+                                        <p>สกัด Pain Points, Demographics และความกังวลผู้ตอบ (Interview X)</p>
+                                    </button>
+                                </div>
+
+                                <div class="ai-result-header">
+                                    <h4 style="display: flex; align-items: center; gap: 6px;">
+                                        <i data-lucide="terminal" style="width: 18px; height: 18px; color: var(--color-primary);"></i>
+                                        ผลลัพธ์การประมวลผลจาก AI
+                                    </h4>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button id="btn-copy-ai-result" class="btn btn-secondary btn-small hidden" title="คัดลอกคำตอบ">
+                                            <i data-lucide="copy"></i> <span>คัดลอก</span>
+                                        </button>
+                                        <button id="btn-download-ai-result" class="btn btn-secondary btn-small hidden" title="ดาวน์โหลด Markdown">
+                                            <i data-lucide="download"></i> <span>ดาวน์โหลด</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="ai-analysis-result" class="ai-result-body">
+                                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 12px; text-align: center; padding: 20px;">
+                                        <i data-lucide="cpu" style="width: 48px; height: 48px; opacity: 0.5;" class="animate-pulse"></i>
+                                        <p>กรุณาป้อน Gemini API Key และกดปุ่มวิเคราะห์ด้านบน เพื่อให้ AI จำลองผลลัพธ์เชิงสถาปัตยกรรมหรือสกัด User Stories ตามความเห็น/ความต้องการจริงในระบบ</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Panel: Interactive Analyst Sandbox -->
+                        <div class="ai-card full-height">
+                            <div class="chat-sandbox">
+                                <h3>ห้องสนทนาวิเคราะห์ระบบ (AI Analyst Sandbox)</h3>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">พูดคุย ซักถาม สอบถามข้อมูลสถิติ หรือสั่งให้ AI เขียนสเปกฟีเจอร์ย่อยเฉพาะหัวข้อได้โดยอ้างอิงจากข้อมูลความต้องการปัจจุบัน</p>
+                                
+                                <div id="chat-messages-container" class="chat-messages-container" style="margin-top: 14px;">
+                                    <div class="chat-message ai">
+                                        <div class="msg-meta">
+                                            <i data-lucide="bot" style="width: 14px; height: 14px;"></i> ผู้ช่วยวิเคราะห์ระบบ (AI Analyst)
+                                        </div>
+                                        สวัสดีครับ! ผมเป็นผู้ช่วยวิเคราะห์ระบบสำหรับโครงการ ReqVibe มีข้อมูลความต้องการจำนวน <span class="ai-req-count-label">0</span> รายการในระบบที่พร้อมสำหรับการวิเคราะห์
+                                        <br><br>
+                                        ท่านสามารถพิมพ์ถามคำถามใดๆ เกี่ยวกับข้อกำหนดของระบบ หรือใช้คีย์เวิร์ดด่วนด้านล่างเพื่อเริ่มถามได้ทันทีครับ!
+                                    </div>
+                                </div>
+
+                                <div class="chat-quick-tags">
+                                    <button class="quick-tag-btn" data-query="ความต้องการของระบบเกี่ยวกับเรื่องความปลอดภัย (Security) มีอะไรบ้าง?">
+                                        <i data-lucide="shield"></i> ด้านความปลอดภัย
+                                    </button>
+                                    <button class="quick-tag-btn" data-query="สรุปปัญหา Pain Points ของผู้ตอบแบบสอบถามเกี่ยวกับการสัมภาษณ์งานภาษาอังกฤษ">
+                                        <i data-lucide="languages"></i> สัมภาษณ์ภาษาอังกฤษ
+                                    </button>
+                                    <button class="quick-tag-btn" data-query="มีผู้ใช้งานบ่นหรือกังวลเรื่อง AI Feedback อย่างไรบ้าง?">
+                                        <i data-lucide="message-square"></i> ความกังวล AI Feedback
+                                    </button>
+                                    <button class="quick-tag-btn" data-query="ช่วยเขียน User Story สรุปภาพรวมของโมดูลระบบจำลองการสัมภาษณ์งาน">
+                                        <i data-lucide="clipboard-list"></i> User Story ระบบจำลอง
+                                    </button>
+                                </div>
+
+                                <div class="chat-input-wrapper">
+                                    <textarea id="chat-input" placeholder="สอบถาม AI เกี่ยวกับความต้องการและระบบสัมภาษณ์งาน..." aria-label="พิมพ์คำถามที่นี่..."></textarea>
+                                    <button id="btn-send-chat" class="btn btn-primary" style="height: 38px; width: 38px; padding: 0; border-radius: var(--radius-md);" title="ส่งข้อความ">
+                                        <i data-lucide="send"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>

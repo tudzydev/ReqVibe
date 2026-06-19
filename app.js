@@ -113,6 +113,23 @@ const elements = {
     fnSearchInput: document.getElementById("fn-search-input"),
     btnExportFNAnalysis: document.getElementById("btn-export-fnanalysis"),
 
+    // Tab 6: AI Chat & Assistant
+    geminiApiKey: document.getElementById("gemini-api-key"),
+    btnSaveApiKey: document.getElementById("btn-save-api-key"),
+    btnClearApiKey: document.getElementById("btn-clear-api-key"),
+    apiKeyStatus: document.getElementById("api-key-status"),
+    geminiModel: document.getElementById("gemini-model"),
+    btnAiStoryAnalysis: document.getElementById("btn-ai-story-analysis"),
+    btnAiArchitecture: document.getElementById("btn-ai-architecture"),
+    btnAiGrouping: document.getElementById("btn-ai-grouping"),
+    btnAiSurvey: document.getElementById("btn-ai-survey"),
+    chatMessagesContainer: document.getElementById("chat-messages-container"),
+    chatInput: document.getElementById("chat-input"),
+    btnSendChat: document.getElementById("btn-send-chat"),
+    aiAnalysisResult: document.getElementById("ai-analysis-result"),
+    btnCopyAiResult: document.getElementById("btn-copy-ai-result"),
+    btnDownloadAiResult: document.getElementById("btn-download-ai-result"),
+
     // Toast
     toastContainer: document.getElementById("toast-container")
 };
@@ -122,6 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
     lucide.createIcons();
     initTheme();
     loadFromLocalStorage();
+    initAIConfig();
     setupEventListeners();
     updateUI();
 });
@@ -340,6 +358,67 @@ function setupEventListeners() {
     if (elements.btnExportFNAnalysis) {
         elements.btnExportFNAnalysis.addEventListener("click", exportFNAnalysis);
     }
+
+    // Tab 6: AI Chat & Key Configuration
+    if (elements.btnSaveApiKey) {
+        elements.btnSaveApiKey.addEventListener("click", saveApiKey);
+    }
+    if (elements.btnClearApiKey) {
+        elements.btnClearApiKey.addEventListener("click", clearApiKey);
+    }
+    if (elements.geminiModel) {
+        elements.geminiModel.addEventListener("change", (e) => {
+            localStorage.setItem("reqvibe-gemini-model", e.target.value);
+            const savedKey = localStorage.getItem("reqvibe-gemini-key") || "";
+            updateApiKeyStatusUI(savedKey);
+        });
+    }
+
+    // AI Analysis Trigger Buttons
+    if (elements.btnAiStoryAnalysis) {
+        elements.btnAiStoryAnalysis.addEventListener("click", () => runDeepAIAnalysis("story"));
+    }
+    if (elements.btnAiArchitecture) {
+        elements.btnAiArchitecture.addEventListener("click", () => runDeepAIAnalysis("architecture"));
+    }
+    if (elements.btnAiGrouping) {
+        elements.btnAiGrouping.addEventListener("click", () => runDeepAIAnalysis("grouping"));
+    }
+    if (elements.btnAiSurvey) {
+        elements.btnAiSurvey.addEventListener("click", () => runDeepAIAnalysis("survey"));
+    }
+
+    // Copy / Download AI Result
+    if (elements.btnCopyAiResult) {
+        elements.btnCopyAiResult.addEventListener("click", copyAIResult);
+    }
+    if (elements.btnDownloadAiResult) {
+        elements.btnDownloadAiResult.addEventListener("click", downloadAIResult);
+    }
+
+    // Chat Interface Sending
+    if (elements.btnSendChat) {
+        elements.btnSendChat.addEventListener("click", sendChatMessage);
+    }
+    if (elements.chatInput) {
+        elements.chatInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+    }
+
+    // Chat Quick Tags
+    document.querySelectorAll(".quick-tag-btn").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const query = btn.getAttribute("data-query") || btn.textContent.trim();
+            if (elements.chatInput) {
+                elements.chatInput.value = query;
+                sendChatMessage();
+            }
+        });
+    });
 }
 
 // Switching between navigation panels
@@ -375,6 +454,8 @@ function switchTab(tabName) {
         renderExportTab();
     } else if (tabName === "fnanalysis") {
         renderFNAnalysisView();
+    } else if (tabName === "aichat") {
+        renderAIChatTab();
     }
 }
 
@@ -1103,21 +1184,101 @@ function renderGroupsBarChart() {
 }
 
 // Smart Requirements Clustering (Local Natural Language processing model simulation)
+// Smart Requirements Clustering (Gemini API or Local Natural Language processing model simulation fallback)
 function runAIRequirementClustering() {
     if (state.requirements.length === 0) {
         showToast("กรุณานำเข้าข้อมูลความต้องการหรือผลสำรวจก่อน", "warning");
         return;
     }
 
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (apiKey) {
+        // Run Real Gemini API clustering!
+        elements.btnRunAnalysis.disabled = true;
+        elements.btnRunAnalysis.innerHTML = `
+            <div class="loader-spinner"></div>
+            <span>กำลังใช้ Gemini AI วิเคราะห์...</span>
+        `;
+        showToast("กำลังเรียกใช้ Gemini API เพื่อวิเคราะห์จัดกลุ่มตามจริง...", "info");
+
+        const prompt = `คุณคือ Product Owner และ System Analyst มืออาชีพ
+กรุณาทำความเข้าใจและวิเคราะห์ข้อกำหนดความต้องการ (Requirements) หรือผลการสำรวจจำนวนทั้งหมด ${state.requirements.length} รายการต่อไปนี้
+
+และนำเสนอแนวทางการจัดกลุ่มฟีเจอร์/โมดูลระบบที่ดีที่สุด โดยให้สกัดหัวข้อกลุ่มออกเป็นไม่เกิน 6-8 กลุ่มโมดูลหลัก และจัดสรรข้อกำหนดความต้องการแต่ละรายการเข้าไปยังกลุ่มเหล่านั้นตามความเหมาะสมที่สุด (Semantic Clustering)
+
+ข้อมูลความต้องการระบบ (Requirements Data):
+${serializeRequirementsForAI()}
+
+คุณจะต้องส่งคืนคำตอบในรูปแบบ JSON เท่านั้น โดยห้ามมีข้อความอธิบายอื่นนอก JSON (เช่น Markdown formatting \`\`\`json หรือคำอธิบายภายนอก) รูปแบบโครงสร้าง JSON ที่คุณต้องปฏิบัติตามมีดังนี้:
+{
+  "summary": "ข้อความสรุปวิเคราะห์ข้อมูลความต้องการของโครงการและทิศทางหลักแบบภาพรวม (1-2 ย่อหน้าเป็นภาษาไทย)",
+  "groups": [
+    {
+      "groupName": "ชื่อกลุ่มโมดูลที่แนะนำ (ภาษาไทย)",
+      "reason": "เหตุผลสั้นๆ ที่แนะนำให้จัดกลุ่มนี้และเชื่อมโยงกับฟีเจอร์หลัก (ภาษาไทย)",
+      "reqIds": ["REQ-001", "REQ-002", ...]
+    }
+  ]
+}
+
+โปรดระวัง: รายการ reqIds จะต้องมีอยู่จริงในรหัสข้อกำหนดที่ส่งไปให้ ห้ามสร้างรหัสใหม่ที่ไม่ได้ระบุเด็ดขาด!`;
+
+        const systemInstruction = "คุณคือระบบ AI ประมวลผลและจัดกลุ่มความต้องการระบบซอฟต์แวร์ คืนค่าเฉพาะ JSON ตามรูปแบบที่ระบุเท่านั้น";
+        
+        callGeminiAPIJson(prompt, systemInstruction)
+            .then(result => {
+                if (!result.groups || !Array.isArray(result.groups)) {
+                    throw new Error("โครงสร้างผลลัพธ์จาก AI ไม่ถูกต้อง");
+                }
+
+                state.aiInsights = {
+                    isSurvey: state.isSurveyForm,
+                    summary: result.summary || `สกัดกลุ่มโมดูลสอดคล้องความต้องการทั้งหมดด้วย AI เรียบร้อยแล้ว`,
+                    suggestions: result.groups.map(g => {
+                        return {
+                            groupName: g.groupName,
+                            reason: g.reason || `แนะนำสำหรับการจัดกลุ่มความต้องการระบบตามความเหมาะสม`,
+                            reqIds: g.reqIds || [],
+                            sampleKeywords: [g.groupName]
+                        };
+                    }),
+                    unmatchedCount: state.requirements.length - result.groups.reduce((acc, g) => acc + (g.reqIds ? g.reqIds.length : 0), 0)
+                };
+
+                // UI toggles
+                elements.aiSuggestionBox.classList.add("hidden");
+                elements.aiResultsBox.classList.remove("hidden");
+                
+                renderAIResultsUI();
+                
+                elements.btnRunAnalysis.disabled = false;
+                elements.btnRunAnalysis.innerHTML = `
+                    <i data-lucide="sparkles"></i> วิเคราะห์และจัดกลุ่มอัตโนมัติ
+                `;
+                lucide.createIcons();
+                showToast("เรียกใช้ Gemini AI ประมวลผลจัดกลุ่มจริงเรียบร้อยแล้ว!", "success");
+            })
+            .catch(err => {
+                console.error("Gemini Grouping error:", err);
+                showToast(`เกิดข้อผิดพลาดในการจัดกลุ่มด้วย AI: ${err.message}. จะใช้การวิเคราะห์จำลองแทน`, "danger");
+                runLocalHeuristicGrouping();
+            });
+        return;
+    }
+
+    // Default to Heuristic local simulation
+    runLocalHeuristicGrouping();
+}
+
+function runLocalHeuristicGrouping() {
     elements.btnRunAnalysis.disabled = true;
     elements.btnRunAnalysis.innerHTML = `
         <div class="loader-spinner"></div>
         <span>กำลังวิเคราะห์ข้อมูล...</span>
     `;
 
-    showToast("กำลังประมวลผลคำศัพท์และวิเคราะห์ข้อมูล...", "info");
+    showToast("คำแนะนำ: กำลังใช้การวิเคราะห์จำลอง (Heuristics) ท้องถิ่น คุณสามารถใส่ API Key ในแท็บผู้ช่วย AI เพื่อวิเคราะห์จริง", "warning");
 
-    // Local clustering algorithms simulation (Heuristic Matching)
     setTimeout(() => {
         if (state.isSurveyForm) {
             const total = state.requirements.length;
@@ -1274,7 +1435,7 @@ function runAIRequirementClustering() {
             <i data-lucide="sparkles"></i> วิเคราะห์และจัดกลุ่มอัตโนมัติ
         `;
         lucide.createIcons();
-        showToast("ประมวลผลวิเคราะห์การจัดกลุ่มเรียบร้อยแล้ว!", "success");
+        showToast("ประมวลผลวิเคราะห์การจัดกลุ่มจำลองเรียบร้อยแล้ว!", "success");
     }, 1200);
 }
 
@@ -1492,6 +1653,15 @@ function renderTabularView() {
                 </div>
             </td>
         `;
+
+        tr.style.cursor = "pointer";
+        tr.addEventListener("click", (e) => {
+            // If click is on actions cell or inside it, don't trigger edit
+            if (e.target.closest(".actions-cell") || e.target.closest(".btn-delete-row") || e.target.closest(".btn-edit-row")) {
+                return;
+            }
+            openRequirementModal(masterIdx);
+        });
 
         elements.requirementsTbody.appendChild(tr);
     });
@@ -2365,3 +2535,463 @@ function exportFNAnalysis() {
     document.body.removeChild(link);
     showToast("ส่งออกรายงานการวิเคราะห์ในรูปแบบ Markdown เรียบร้อยแล้ว", "success");
 }
+
+// ==========================================================================
+// TAB 6: AI CHAT & ASSISTANT LOGIC
+// ==========================================================================
+
+function initAIConfig() {
+    const savedKey = localStorage.getItem("reqvibe-gemini-key") || "";
+    const savedModel = localStorage.getItem("reqvibe-gemini-model") || "gemini-3.5-flash";
+    
+    if (elements.geminiApiKey) {
+        elements.geminiApiKey.value = savedKey;
+    }
+    if (elements.geminiModel) {
+        elements.geminiModel.value = savedModel;
+    }
+    
+    updateApiKeyStatusUI(savedKey);
+}
+
+function updateApiKeyStatusUI(apiKey) {
+    if (!elements.apiKeyStatus) return;
+    
+    if (apiKey) {
+        elements.apiKeyStatus.className = "api-status-badge connected";
+        elements.apiKeyStatus.innerHTML = `
+            <i data-lucide="check-circle" style="width: 14px; height: 14px;"></i> เชื่อมต่อ Gemini API แล้ว (${localStorage.getItem("reqvibe-gemini-model") || "gemini-3.5-flash"})
+        `;
+        if (elements.btnClearApiKey) elements.btnClearApiKey.classList.remove("hidden");
+    } else {
+        elements.apiKeyStatus.className = "api-status-badge disconnected";
+        elements.apiKeyStatus.innerHTML = `
+            <i data-lucide="alert-circle" style="width: 14px; height: 14px;"></i> ยังไม่ได้เชื่อมต่อ Gemini API (ใช้ Heuristic จำลอง)
+        `;
+        if (elements.btnClearApiKey) elements.btnClearApiKey.classList.add("hidden");
+    }
+    lucide.createIcons();
+}
+
+function saveApiKey() {
+    const key = elements.geminiApiKey.value.trim();
+    const model = elements.geminiModel.value;
+    
+    if (!key) {
+        showToast("กรุณาป้อน API Key ก่อนบันทึก", "warning");
+        return;
+    }
+    
+    localStorage.setItem("reqvibe-gemini-key", key);
+    localStorage.setItem("reqvibe-gemini-model", model);
+    updateApiKeyStatusUI(key);
+    showToast("บันทึก Gemini API Key สำเร็จ!", "success");
+    
+    // Update the label in chat as well
+    renderAIChatTab();
+}
+
+function clearApiKey() {
+    localStorage.removeItem("reqvibe-gemini-key");
+    if (elements.geminiApiKey) elements.geminiApiKey.value = "";
+    updateApiKeyStatusUI("");
+    showToast("ลบ API Key เรียบร้อยแล้ว ระบบจะกลับไปใช้ Heuristic จำลอง", "info");
+}
+
+function serializeRequirementsForAI() {
+    if (!state.requirements || state.requirements.length === 0) return "ไม่มีข้อมูลความต้องการในระบบ";
+    
+    return state.requirements.map(r => {
+        let text = `ID: ${r.id}\nTitle: ${r.title}\nDescription: ${r.description}\nGroup: ${r.group || "Unassigned"}\nPriority: ${r.priority}\nStatus: ${r.status}`;
+        if (state.isSurveyForm) {
+            text += `\nRaw Status: ${r.rawStatus || ""}\nConcerns: ${r.rawConcerns || ""}`;
+        }
+        return text;
+    }).join("\n---\n");
+}
+
+async function callGeminiAPI(prompt, systemInstruction = "") {
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (!apiKey) {
+        throw new Error("กรุณาป้อน Gemini API Key ในแท็บผู้ช่วย AI เพื่อเปิดใช้งานการวิเคราะห์ด้วย AI จริง");
+    }
+    
+    const model = localStorage.getItem("reqvibe-gemini-model") || "gemini-3.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    const requestBody = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: prompt }]
+            }
+        ]
+    };
+    
+    if (systemInstruction) {
+        requestBody.systemInstruction = {
+            parts: [{ text: systemInstruction }]
+        };
+    }
+    
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || response.statusText;
+        throw new Error(`API Error: ${errorMessage}`);
+    }
+    
+    const data = await response.json();
+    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+        throw new Error("ไม่สามารถอ่านผลลัพธ์จาก AI Model ได้");
+    }
+    return candidateText;
+}
+
+async function callGeminiAPIJson(prompt, systemInstruction = "") {
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (!apiKey) {
+        throw new Error("กรุณาป้อน Gemini API Key ในแท็บผู้ช่วย AI เพื่อเปิดใช้งานการจัดกลุ่มด้วย AI จริง");
+    }
+    
+    const model = localStorage.getItem("reqvibe-gemini-model") || "gemini-3.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    
+    const requestBody = {
+        contents: [
+            {
+                role: "user",
+                parts: [{ text: prompt }]
+            }
+        ],
+        generationConfig: {
+            responseMimeType: "application/json"
+        }
+    };
+    
+    if (systemInstruction) {
+        requestBody.systemInstruction = {
+            parts: [{ text: systemInstruction }]
+        };
+    }
+    
+    const response = await fetch(url, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || response.statusText;
+        throw new Error(`API Error: ${errorMessage}`);
+    }
+    
+    const data = await response.json();
+    const candidateText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+        throw new Error("ไม่พบผลลัพธ์ JSON ใน AI Model");
+    }
+    
+    return JSON.parse(candidateText.trim());
+}
+
+function parseMarkdownToHTML(markdown) {
+    if (!markdown) return "";
+    
+    let html = markdown;
+    
+    // Escape HTML tags to prevent XSS (except for our generated ones)
+    html = html
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    
+    // Code blocks: ```language ... ```
+    html = html.replace(/```([\w-]*)\n([\s\S]*?)\n```/g, (match, lang, code) => {
+        return `<pre><code class="language-${lang}">${code}</code></pre>`;
+    });
+    
+    // Inline code: `code`
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Headers: # Header
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+    
+    // Bold: **text** or __text__
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+    
+    // Italic: *text* or _text_
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    html = html.replace(/_([^_]+)_/g, '<em>$1</em>');
+    
+    // Unordered lists: - item or * item
+    html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>');
+    
+    // Wrap lists in <ul> (heuristically)
+    html = html.replace(/(<li>.*<\/li>)/gs, (match) => {
+        return `<ul>${match}</ul>`;
+    });
+    // Remove duplicate consecutive ul/ol wrapping from simple regex
+    html = html.replace(/<\/ul>\s*<ul>/g, '');
+    
+    // Tables
+    const lines = html.split('\n');
+    let inTable = false;
+    let tableHtml = '';
+    
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.startsWith('|') && line.endsWith('|')) {
+            const cells = line.split('|').map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+            if (!inTable) {
+                inTable = true;
+                tableHtml = '<table><thead><tr>';
+                cells.forEach(c => tableHtml += `<th>${c}</th>`);
+                tableHtml += '</tr></thead><tbody>';
+                if (i + 1 < lines.length && lines[i+1].includes('-')) {
+                    i++;
+                }
+            } else {
+                tableHtml += '<tr>';
+                cells.forEach(c => {
+                    let cleanCell = c
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/`([^`]+)`/g, '<code>$1</code>');
+                    tableHtml += `<td>${cleanCell}</td>`;
+                });
+                tableHtml += '</tr>';
+            }
+        } else {
+            if (inTable) {
+                inTable = false;
+                tableHtml += '</tbody></table>';
+                lines[i] = tableHtml + '\n' + lines[i];
+                tableHtml = '';
+            }
+        }
+    }
+    if (inTable) {
+        tableHtml += '</tbody></table>';
+        html = lines.join('\n') + tableHtml;
+    } else {
+        html = lines.join('\n');
+    }
+
+    html = html.replace(/\n\n/g, '<p></p>');
+    html = html.replace(/\n(?!<pre>)(?!<\/pre>)(?!<li>)(?!<ul>)(?!<\/ul>)(?!<table>)(?!<\/table>)(?!<tr>)(?!<td>)(?!<th>)(?!<thead>)(?!<tbody>)/g, '<br>');
+
+    return html;
+}
+
+function renderAIChatTab() {
+    const labels = document.querySelectorAll(".ai-req-count-label");
+    labels.forEach(l => {
+        l.textContent = state.requirements.length;
+    });
+}
+
+let currentAIResultMarkdown = ""; // Store current markdown output
+
+async function runDeepAIAnalysis(type) {
+    if (state.requirements.length === 0) {
+        showToast("กรุณานำเข้าข้อมูลความต้องการหรือผลสำรวจก่อนวิเคราะห์", "warning");
+        return;
+    }
+
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (!apiKey) {
+        showToast("กรุณากรอกและบันทึก Gemini API Key เพื่อเริ่มวิเคราะห์ด้วย AI", "warning");
+        switchTab("aichat");
+        if (elements.geminiApiKey) elements.geminiApiKey.focus();
+        return;
+    }
+
+    // Set loading state
+    elements.aiAnalysisResult.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-muted); gap: 12px; padding: 20px;">
+            <div class="loader-spinner-large"></div>
+            <p><strong>Gemini AI กำลังทำการวิเคราะห์เชิงระบบ...</strong></p>
+            <p style="font-size: 0.8rem; opacity: 0.8;">ขั้นตอนนี้อาจใช้เวลา 5-15 วินาที ขึ้นอยู่กับรุ่นโมดูลและขนาดของข้อมูลความต้องการ</p>
+        </div>
+    `;
+    
+    // Hide Copy/Download buttons during loading
+    elements.btnCopyAiResult.classList.add("hidden");
+    elements.btnDownloadAiResult.classList.add("hidden");
+
+    let prompt = "";
+    let systemInstruction = "คุณคือวิศวกรระบบและนักวิเคราะห์ความต้องการเชิงระบบระดับสูง (Principal System Analyst) ประมวลผลและตอบคำถามเป็นภาษาไทยด้วยความแม่นยำทางวิศวกรรมซอฟต์แวร์";
+    
+    if (type === "story") {
+        prompt = `วิเคราะห์ข้อมูลความต้องการของโครงการจากลิสต์ที่ให้ไว้ และสกัดความต้องการเหล่านั้นเป็น User Stories พร้อมระบุเกณฑ์การยอมรับ (Acceptance Criteria) ในรูปแบบ Given-When-Then สำหรับฟีเจอร์หลักหรือส่วนที่สำคัญที่สุด 5-10 รายการ
+
+ข้อมูลความต้องการโครงการ:
+${serializeRequirementsForAI()}
+
+กรุณาจัดรูปแบบคำตอบในสไตล์ Markdown ที่สวยงาม มีระเบียบ มีการใช้ตัวหนา ตาราง และ Bullet points อย่างเป็นมืออาชีพ`;
+    } else if (type === "architecture") {
+        prompt = `วิเคราะห์ความต้องการระบบต่อไปนี้ และให้คำแนะนำด้านสถาปัตยกรรมและการออกแบบระบบ:
+1. การเลือก Architecture (เช่น Microservices หรือ Monolith) และแนะนำเทคโนโลยี/เฟรมเวิร์กที่สอดคล้องกับข้อกำหนด
+2. Database Schema Design (วาด Entity-Relationship แบบตัวอักษร หรือทำตารางอธิบาย Database Schema คีย์หลัก คีย์รอง ของตาราง/คอลเลกชันที่จำเป็นอย่างน้อย 3 ตาราง เช่น Users, Sessions, Feedback)
+3. การออกแบบระบบ scaling และการจัดทำแคชชิ่ง (Caching / Performance)
+
+ข้อมูลความต้องการโครงการ:
+${serializeRequirementsForAI()}
+
+กรุณาจัดรูปแบบคำตอบเป็น Markdown ที่สวยงามและพร้อมสำหรับใส่ใน System Architecture Design Document`;
+    } else if (type === "grouping") {
+        prompt = `ทำการวิเคราะห์ความต้องการระบบ (System Requirements/Survey Responses) ต่อไปนี้ และเสนอแนวทางการจัดกลุ่มโมดูลของระบบ (System Module Decomposition)
+โดยอธิบาย:
+1. เสนอแนะกลุ่มโมดูลที่แยก (สูงสุด 6-8 โมดูลหลัก)
+2. อธิบายรายละเอียดว่าแต่ละโมดูลตอบสนองฟังก์ชันการทำงานส่วนใด และมีขอบเขต (Scope) อย่างไร
+3. แสดงความสัมพันธ์หรือลำดับการพัฒนาโมดูลเหล่านี้ (Roadmap)
+
+ข้อมูลความต้องการโครงการ:
+${serializeRequirementsForAI()}
+
+กรุณาสรุปผลเป็นรายงาน Markdown ที่สวยงาม และหากเป็นไปได้ คุณสามารถประมวลผลจัดกลุ่มอัตโนมัติบนบอร์ดโดยกดปุ่ม "วิเคราะห์และจัดกลุ่มอัตโนมัติ" ในแดชบอร์ดหลัก`;
+    } else if (type === "survey") {
+        prompt = `วิเคราะห์ข้อมูลผลตอบแบบสอบถาม (Survey Responses) ระบบเตรียมสัมภาษณ์งานอัจฉริยะ Interview X ต่อไปนี้ และทำรายงานวิเคราะห์เชิงลึก:
+1. สรุปความต้องการเชิงประชากร (User Demographics & Profiles) สรุปเปอร์เซ็นต์หรือแนวโน้มของกลุ่มผู้ตอบ
+2. วิเคราะห์ Pain Points และประเด็นความวิตกกังวลหลัก 5 อันดับแรกของผู้ตอบ
+3. สรุปฟีเจอร์หรือความต้องการที่ได้รับการเรียกร้อง/แนะนำมากที่สุด (เช่น ด้านทักษะการตอบสัมภาษณ์ภาษาอังกฤษ, ความมั่นใจ)
+4. สรุปแนวทางการปรับปรุงระบบ (Actionable Product Recommendations)
+
+ข้อมูลความต้องการสำรวจ:
+${serializeRequirementsForAI()}
+
+กรุณาตอบเป็นรายงาน Markdown โครงสร้างสวยงาม อ่านเข้าใจง่าย`;
+    }
+
+    try {
+        const result = await callGeminiAPI(prompt, systemInstruction);
+        currentAIResultMarkdown = result;
+        elements.aiAnalysisResult.innerHTML = parseMarkdownToHTML(result);
+        
+        // Show Copy/Download buttons
+        elements.btnCopyAiResult.classList.remove("hidden");
+        elements.btnDownloadAiResult.classList.remove("hidden");
+        
+        showToast("วิเคราะห์ความต้องการด้วย Gemini สำเร็จแล้ว!", "success");
+    } catch (e) {
+        console.error("AI Analysis Error:", e);
+        elements.aiAnalysisResult.innerHTML = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--color-danger); gap: 12px; text-align: center; padding: 20px;">
+                <i data-lucide="x-circle" style="width: 48px; height: 48px;"></i>
+                <p><strong>เกิดข้อผิดพลาดในการเรียกใช้ Gemini API</strong></p>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">${e.message}</p>
+            </div>
+        `;
+        lucide.createIcons();
+    }
+}
+
+function copyAIResult() {
+    if (!currentAIResultMarkdown) return;
+    navigator.clipboard.writeText(currentAIResultMarkdown)
+        .then(() => showToast("คัดลอกผลลัพธ์ไปยังคลิปบอร์ดแล้ว!", "success"))
+        .catch(() => showToast("ไม่สามารถคัดลอกได้", "danger"));
+}
+
+function downloadAIResult() {
+    if (!currentAIResultMarkdown) return;
+    const blob = new Blob([currentAIResultMarkdown], { type: "text/markdown;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `AI_Requirements_Analysis_${new Date().toISOString().slice(0,10)}.md`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("ดาวน์โหลดรายงาน Markdown สำเร็จ!", "success");
+}
+
+async function sendChatMessage() {
+    const query = elements.chatInput.value.trim();
+    if (!query) return;
+
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (!apiKey) {
+        showToast("กรุณากรอกและบันทึก Gemini API Key ก่อนสนทนา", "warning");
+        if (elements.geminiApiKey) elements.geminiApiKey.focus();
+        return;
+    }
+
+    // Append user message to UI
+    appendChatMessageUI(query, "user");
+    elements.chatInput.value = "";
+    
+    // Show AI loading bubble
+    const loadingBubble = appendChatMessageUI(`
+        <div style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted);">
+            <div class="loader-spinner"></div>
+            <span>กำลังคิด...</span>
+        </div>
+    `, "ai", true);
+
+    try {
+        // Collect chat history from UI (up to last 10 messages)
+        const messages = [];
+        const messageElements = elements.chatMessagesContainer.querySelectorAll(".chat-message");
+        
+        // Let's build a nice single prompt with context of requirements
+        const systemInstruction = `คุณคือผู้ช่วยวิเคราะห์ระบบ (AI System Analyst Assistant) สำหรับโครงการ ReqVibe หน้าที่ของคุณคือตอบคำถามและวิเคราะห์ข้อมูลความต้องการของระบบ (System Requirements/Survey Responses) ที่แนบมานี้อย่างถูกต้องและเป็นมืออาชีพ พยายามอ้างอิงข้อมูลจากรายการความต้องการจริงเสมอ หากไม่มีข้อมูลเพียงพอให้ระบุตามตรง และแนะนำแนวทางที่สมเหตุสมผลในการเก็บข้อมูลเพิ่ม`;
+        
+        const contextPrompt = `ข้อมูลความต้องการโครงการปัจจุบัน:
+${serializeRequirementsForAI()}
+
+คำถามของผู้ใช้:
+${query}`;
+
+        const result = await callGeminiAPI(contextPrompt, systemInstruction);
+        
+        // Remove loading bubble and append actual response
+        loadingBubble.remove();
+        appendChatMessageUI(result, "ai");
+    } catch (e) {
+        console.error("Chat Error:", e);
+        loadingBubble.remove();
+        appendChatMessageUI(`เกิดข้อผิดพลาด: ${e.message}`, "ai");
+    }
+}
+
+function appendChatMessageUI(content, role, isRawHTML = false) {
+    const msg = document.createElement("div");
+    msg.className = `chat-message ${role}`;
+    
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const senderName = role === "user" ? "ผู้ใช้" : "ผู้ช่วยวิเคราะห์ระบบ (AI Analyst)";
+    const icon = role === "user" ? "user" : "bot";
+    
+    const parsedContent = isRawHTML ? content : (role === "ai" ? parseMarkdownToHTML(content) : content);
+    
+    msg.innerHTML = `
+        <div class="msg-meta">
+            <i data-lucide="${icon}" style="width: 14px; height: 14px;"></i> ${senderName} • ${time}
+        </div>
+        <div>${parsedContent}</div>
+    `;
+    
+    elements.chatMessagesContainer.appendChild(msg);
+    lucide.createIcons();
+    
+    // Scroll to bottom
+    elements.chatMessagesContainer.scrollTop = elements.chatMessagesContainer.scrollHeight;
+    
+    return msg;
+}
+
