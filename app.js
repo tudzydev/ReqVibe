@@ -3,17 +3,27 @@
  * Handles: state management, spreadsheet parsing, NLP heuristics, drag-and-drop, charts, CRUD operations, exports.
  */
 
+// Prevent Lucide CDN failures from blocking Javascript execution
+if (typeof lucide === "undefined") {
+    window.lucide = {
+        createIcons: function() {
+            console.warn("Lucide icons script failed to load. Icons will not display, but the application functions normally.");
+        }
+    };
+}
+
 // Application State
 let state = {
     requirements: [],
     groups: ["ความปลอดภัย", "ระบบการชำระเงิน", "ฟีเจอร์หลัก", "การจัดการผู้ใช้งาน", "ระบบวิเคราะห์ข้อมูล"], // Default groups
     activeTab: "analytics",
-    theme: "dark",
+    theme: "light",
     sorting: { column: "id", direction: "asc" },
     filters: { search: "", group: "", priority: "", status: "", fnSearch: "" },
     sourceName: "ไม่ได้เชื่อมต่อแหล่งข้อมูล",
     aiInsights: null,
-    isSurveyForm: false
+    isSurveyForm: false,
+    lastAiProposedCard: null
 };
 
 // Global Chart References
@@ -129,6 +139,9 @@ const elements = {
     aiAnalysisResult: document.getElementById("ai-analysis-result"),
     btnCopyAiResult: document.getElementById("btn-copy-ai-result"),
     btnDownloadAiResult: document.getElementById("btn-download-ai-result"),
+    aiCreatorInput: document.getElementById("ai-creator-input"),
+    btnAiCreateCard: document.getElementById("btn-ai-create-card"),
+    aiCreatedCardPreview: document.getElementById("ai-created-card-preview"),
 
     // Toast
     toastContainer: document.getElementById("toast-container")
@@ -146,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Theme Setup (Persist in localStorage)
 function initTheme() {
-    const savedTheme = localStorage.getItem("reqvibe-theme") || "dark";
+    const savedTheme = localStorage.getItem("reqvibe-theme") || "light";
     state.theme = savedTheme;
     document.body.className = savedTheme + "-theme";
     updateThemeToggleUI();
@@ -419,6 +432,19 @@ function setupEventListeners() {
             }
         });
     });
+
+    // AI Card Creator
+    if (elements.btnAiCreateCard) {
+        elements.btnAiCreateCard.addEventListener("click", runAiCardCreator);
+    }
+    if (elements.aiCreatorInput) {
+        elements.aiCreatorInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                runAiCardCreator();
+            }
+        });
+    }
 }
 
 // Switching between navigation panels
@@ -1963,6 +1989,9 @@ function renderExportTab() {
     } else if (format === "json") {
         filename = "requirements_hierarchy.json";
         content = generateJSONExport();
+    } else if (format === "html") {
+        filename = "software_requirements_specification.html";
+        content = generateHTMLExport();
     }
 
     elements.previewFilename.textContent = filename;
@@ -2084,6 +2113,512 @@ function generateJSONExport() {
     return JSON.stringify(hierarchy, null, 4);
 }
 
+function generateHTMLExport() {
+    // Group requirements by module
+    const grouped = {};
+    state.requirements.forEach(r => {
+        const g = r.group || "Unassigned";
+        if (!grouped[g]) grouped[g] = [];
+        grouped[g].push(r);
+    });
+
+    // Calculate statistics
+    const totalCount = state.requirements.length;
+    const highPriorityCount = state.requirements.filter(r => r.priority === "High").length;
+    const completedCount = state.requirements.filter(r => r.status === "Done" || r.status === "เสร็จสิ้น").length;
+    const completedPct = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+    
+    const activeGroups = state.groups.filter(g => grouped[g] && grouped[g].length > 0);
+    const hasUnassigned = grouped["Unassigned"] && grouped["Unassigned"].length > 0;
+    const moduleCount = activeGroups.length + (hasUnassigned ? 1 : 0);
+
+    // Build lists for display
+    let tocHtml = "";
+    let modulesHtml = "";
+    let idx = 1;
+
+    // Helper for rendering cards
+    const renderCard = (r) => {
+        const priorityText = r.priority === 'High' ? 'สูง' : (r.priority === 'Low' ? 'ต่ำ' : 'ปานกลาง');
+        const priorityClass = r.priority.toLowerCase();
+        const statusText = r.status === 'Done' ? 'เสร็จสิ้น' : (r.status === 'In Progress' ? 'กำลังทำ' : 'ยังไม่ได้เริ่ม');
+        const statusClass = r.status.toLowerCase().replace(" ", "-");
+        
+        return `
+        <div class="req-card">
+            <div class="card-header">
+                <span class="req-id">${r.id}</span>
+                <div class="card-badges">
+                    <span class="badge priority-${priorityClass}">${priorityText}</span>
+                    <span class="badge status-${statusClass}">${statusText}</span>
+                </div>
+            </div>
+            <h4 class="card-title">${r.title}</h4>
+            <p class="card-desc">${r.description || '<em>ไม่มีรายละเอียด</em>'}</p>
+        </div>
+        `;
+    };
+
+    // Process assigned modules
+    activeGroups.forEach(g => {
+        const reqs = grouped[g] || [];
+        tocHtml += `<li><a href="#module-${idx}">โมดูลที่ ${idx}: ${g} (${reqs.length} รายการ)</a></li>`;
+        
+        modulesHtml += `
+        <section id="module-${idx}" class="module-section">
+            <div class="module-header">
+                <h2>โมดูลที่ ${idx}: ${g}</h2>
+                <span class="module-count">${reqs.length} รายการ</span>
+            </div>
+            <div class="cards-grid">
+                ${reqs.map(renderCard).join('')}
+            </div>
+        </section>
+        `;
+        idx++;
+    });
+
+    // Process unassigned backlog
+    if (hasUnassigned) {
+        const reqs = grouped["Unassigned"];
+        tocHtml += `<li><a href="#module-backlog">รายการรอดำเนินการ (Product Backlog) (${reqs.length} รายการ)</a></li>`;
+        
+        modulesHtml += `
+        <section id="module-backlog" class="module-section">
+            <div class="module-header">
+                <h2>รายการรอดำเนินการ (Product Backlog)</h2>
+                <span class="module-count">${reqs.length} รายการ</span>
+            </div>
+            <div class="cards-grid">
+                ${reqs.map(renderCard).join('')}
+            </div>
+        </section>
+        `;
+    }
+
+    // Modern HTML document string with premium styles
+    return `<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เอกสารข้อกำหนดความต้องการซอฟต์แวร์ (SRS) - ${state.sourceName}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --surface-hover: #334155;
+            --border-color: #334155;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --color-primary: #6366f1;
+            --color-cyan: #06b6d4;
+            --color-rose: #f43f5e;
+            --color-emerald: #10b981;
+            --color-amber: #f59e0b;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --font-main: 'Inter', 'Prompt', 'Sarabun', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* Header section */
+        header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 24px;
+            margin-bottom: 40px;
+            position: relative;
+        }
+
+        .actions-bar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .btn-print {
+            background-color: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-print:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .project-meta {
+            font-size: 0.85rem;
+            color: var(--color-cyan);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .doc-info {
+            display: flex;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            flex-wrap: wrap;
+        }
+
+        .doc-info span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card.accent {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: linear-gradient(180deg, var(--surface-color) 0%, rgba(99, 102, 241, 0.05) 100%);
+        }
+
+        .stat-card.accent .stat-value {
+            color: var(--color-primary);
+        }
+
+        /* Table of Contents */
+        .toc-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 40px;
+        }
+
+        .toc-card h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .toc-card ul {
+            list-style-type: none;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 10px 20px;
+        }
+
+        .toc-card a {
+            color: var(--color-cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+
+        .toc-card a:hover {
+            color: var(--color-primary);
+            text-decoration: underline;
+        }
+
+        /* Module sections */
+        .module-section {
+            margin-bottom: 48px;
+        }
+
+        .module-section {
+            page-break-inside: avoid;
+        }
+
+        .module-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 24px;
+        }
+
+        .module-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .module-count {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background-color: rgba(255,255,255,0.05);
+            padding: 4px 10px;
+            border-radius: 12px;
+        }
+
+        /* Cards Grid */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+        }
+
+        .req-card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .req-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--surface-hover);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .req-id {
+            font-family: monospace;
+            font-weight: 700;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .card-badges {
+            display: flex;
+            gap: 6px;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        /* Priority Colors */
+        .badge.priority-high { background-color: rgba(244, 63, 94, 0.15); color: var(--color-rose); }
+        .badge.priority-medium { background-color: rgba(245, 158, 11, 0.15); color: var(--color-amber); }
+        .badge.priority-low { background-color: rgba(16, 185, 129, 0.15); color: var(--color-emerald); }
+
+        /* Status Colors */
+        .badge.status-done, .badge.status-เสร็จสิ้น { background-color: rgba(16, 185, 129, 0.1); color: var(--color-emerald); border: 1px solid rgba(16, 185, 129, 0.2); }
+        .badge.status-in-progress, .badge.status-กำลังทำ { background-color: rgba(99, 102, 241, 0.1); color: var(--color-primary); border: 1px solid rgba(99, 102, 241, 0.2); }
+        .badge.status-to-do, .badge.status-backlog, .badge.status-ยังไม่ได้เริ่ม { background-color: rgba(148, 163, 184, 0.1); color: var(--text-muted); border: 1px solid rgba(148, 163, 184, 0.2); }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--text-main);
+        }
+
+        .card-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: pre-wrap;
+            line-height: 1.5;
+            flex-grow: 1;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: #ffffff;
+                color: #000000;
+                padding: 0;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            h1 {
+                background: none;
+                -webkit-text-fill-color: initial;
+                color: #000000;
+            }
+
+            .stat-card {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                color: #000000;
+            }
+
+            .stat-card.accent .stat-value {
+                color: #000000;
+            }
+
+            .toc-card {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+            }
+
+            .toc-card a {
+                color: #0284c7;
+            }
+
+            .module-section {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            .req-card {
+                background-color: #ffffff;
+                border: 1px solid #cbd5e1;
+                color: #000000;
+                page-break-inside: avoid;
+                box-shadow: none;
+            }
+
+            .badge {
+                border: 1px solid #94a3b8 !important;
+                background: none !important;
+                color: #000000 !important;
+            }
+
+            .card-title {
+                color: #000000;
+            }
+
+            .card-desc {
+                color: #334155;
+            }
+
+            .module-header h2 {
+                color: #000000;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="actions-bar no-print">
+                <button onclick="window.print()" class="btn-print">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                    พิมพ์และบันทึกเป็น PDF
+                </button>
+            </div>
+            <div class="project-meta">แหล่งข้อมูล: ${state.sourceName}</div>
+            <h1>เอกสารข้อกำหนดความต้องการซอฟต์แวร์ (Software Requirements Specification)</h1>
+            <div class="doc-info">
+                <span><strong>วันที่ออก:</strong> ${new Date().toLocaleDateString('th-TH')}</span>
+                <span><strong>ความต้องการทั้งหมด:</strong> ${totalCount} รายการ</span>
+                <span><strong>โมดูล/กลุ่มระบบ:</strong> ${moduleCount} กลุ่ม</span>
+            </div>
+        </header>
+
+        <section class="stats-grid">
+            <div class="stat-card accent">
+                <div class="stat-value">${totalCount}</div>
+                <div class="stat-label">ความต้องการทั้งหมด</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${moduleCount}</div>
+                <div class="stat-label">กลุ่ม/โมดูลระบบ</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${highPriorityCount}</div>
+                <div class="stat-label">ความสำคัญสูง (High)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${completedPct}%</div>
+                <div class="stat-label">พัฒนาเสร็จสิ้น (${completedCount}/${totalCount})</div>
+            </div>
+        </section>
+
+        <nav class="toc-card no-print">
+            <h3>สารบัญกลุ่มโมดูล</h3>
+            <ul>
+                ${tocHtml}
+            </ul>
+        </nav>
+
+        <main>
+            ${modulesHtml}
+        </main>
+    </div>
+</body>
+</html>`;
+}
+
 // Download action trigger
 function downloadExportFile() {
     const activeBtn = document.querySelector(".export-option-btn.active");
@@ -2097,6 +2632,7 @@ function downloadExportFile() {
     if (format === "markdown") mime = "text/markdown";
     else if (format === "csv") mime = "text/csv";
     else if (format === "json") mime = "application/json";
+    else if (format === "html") mime = "text/html";
 
     const blob = new Blob([content], { type: mime + ";charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -2994,4 +3530,198 @@ function appendChatMessageUI(content, role, isRawHTML = false) {
     
     return msg;
 }
+
+// ==========================================================================
+// AI REQUIREMENT CARD CREATOR & PREVIEW LOGIC
+// ==========================================================================
+async function runAiCardCreator() {
+    const inputVal = elements.aiCreatorInput.value.trim();
+    if (!inputVal) {
+        showToast("กรุณากรอกหัวข้อหรือฟังก์ชันที่ต้องการให้ AI สร้างการ์ด", "warning");
+        return;
+    }
+
+    const apiKey = localStorage.getItem("reqvibe-gemini-key");
+    if (!apiKey) {
+        showToast("ไม่พบ Gemini API Key ในระบบ กำลังสกัดการ์ดในโหมดจำลอง (Mock Mode)", "info");
+        const mockCard = generateMockAiCard(inputVal);
+        state.lastAiProposedCard = mockCard;
+        renderProposedCardPreview();
+        return;
+    }
+
+    // Set loading state
+    const originalBtnHTML = elements.btnAiCreateCard.innerHTML;
+    elements.btnAiCreateCard.disabled = true;
+    elements.btnAiCreateCard.innerHTML = `<span class="spinner-small"></span> กำลังประมวลผล...`;
+    
+    // Hide preview
+    elements.aiCreatedCardPreview.classList.add("hidden");
+
+    try {
+        const systemInstruction = `You are an expert systems analyst and product owner. Analyze the user's requirement input and generate a highly detailed and structured software requirement. Output MUST be valid JSON conforming to the schema. Output in Thai.`;
+        const prompt = `วิเคราะห์หัวข้อความต้องการ: "${inputVal}"
+        แล้วจัดทำเป็นข้อมูลความต้องการซอฟต์แวร์ที่สมบูรณ์ โดยตอบกลับเป็น JSON วัตถุ (Object) ที่มีฟิลด์ดังนี้เท่านั้น:
+        {
+            "title": "หัวข้อความต้องการที่ขัดเกลาให้เป็นทางการและกระชับในภาษาไทย (ความยาวไม่เกิน 10 คำ)",
+            "description": "คำอธิบายรายละเอียดฟังก์ชันการทำงานพร้อมระบุเงื่อนไขการยอมรับ (Acceptance Criteria) หรือขั้นตอนการทำงานสั้นๆ โดยละเอียดและเป็นระบบในภาษาไทย (ความยาว 2-4 บรรทัด)",
+            "priority": "เลือกระดับความสำคัญที่เหมาะสมที่สุดจาก: 'High', 'Medium', 'Low'",
+            "group": "แนะนำโมดูล/กลุ่มระบบที่เหมาะสมที่สุดในภาษาไทย โดยอาจจะเลือกจากกลุ่มที่มีอยู่: [${state.groups.join(', ')}] หรือแนะนำชื่อกลุ่มระบบใหม่ที่เหมาะสมที่สุดขึ้นมาก็ได้"
+        }
+        โปรดตอบกลับเป็นรูปแบบ JSON เปล่าเท่านั้น ไม่ต้องมีเครื่องหมายครอบลิงก์ใดๆ`;
+
+        const aiData = await callGeminiAPIJson(prompt, systemInstruction);
+        
+        let maxNum = 0;
+        state.requirements.forEach(r => {
+            const num = parseInt(r.id.replace(/\D/g, "")) || 0;
+            if (num > maxNum) maxNum = num;
+        });
+        const prefix = state.isSurveyForm ? "RESP-" : "REQ-";
+        const newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+
+        state.lastAiProposedCard = {
+            id: newId,
+            title: aiData.title || inputVal,
+            description: aiData.description || "คำอธิบายไม่ได้ถูกระบุไว้โดย AI",
+            priority: aiData.priority || "Medium",
+            status: "To Do",
+            group: aiData.group || "Unassigned"
+        };
+        
+        renderProposedCardPreview();
+        showToast("สกัดการ์ดความต้องการด้วย AI สำเร็จ! ตรวจสอบตัวอย่างและกดบันทึก", "success");
+    } catch (err) {
+        console.error("AI Card Creator Error:", err);
+        showToast(`เกิดข้อผิดพลาดในการเรียก AI: ${err.message}. ลองใช้อีกครั้งหรือตรวจสอบสิทธิ์ API Key`, "danger");
+        
+        // Failover to Mock so user is not stuck
+        const mockCard = generateMockAiCard(inputVal);
+        state.lastAiProposedCard = mockCard;
+        renderProposedCardPreview();
+    } finally {
+        elements.btnAiCreateCard.disabled = false;
+        elements.btnAiCreateCard.innerHTML = originalBtnHTML;
+    }
+}
+
+function generateMockAiCard(inputVal) {
+    let maxNum = 0;
+    state.requirements.forEach(r => {
+        const num = parseInt(r.id.replace(/\D/g, "")) || 0;
+        if (num > maxNum) maxNum = num;
+    });
+    const prefix = state.isSurveyForm ? "RESP-" : "REQ-";
+    const newId = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+    
+    // Auto-detect group from simple keywords
+    let group = "ฟีเจอร์หลัก";
+    const lowerInput = inputVal.toLowerCase();
+    if (lowerInput.includes("login") || lowerInput.includes("ล็อกอิน") || lowerInput.includes("รหัสผ่าน") || lowerInput.includes("สิทธิ์")) {
+        group = "การจัดการผู้ใช้งาน";
+    } else if (lowerInput.includes("ความปลอดภัย") || lowerInput.includes("otp") || lowerInput.includes("authen") || lowerInput.includes("secure")) {
+        group = "ความปลอดภัย";
+    } else if (lowerInput.includes("จ่าย") || lowerInput.includes("pay") || lowerInput.includes("เงิน") || lowerInput.includes("โอน")) {
+        group = "ระบบการชำระเงิน";
+    } else if (lowerInput.includes("วิเคราะห์") || lowerInput.includes("รายงาน") || lowerInput.includes("กราฟ") || lowerInput.includes("chart")) {
+        group = "ระบบวิเคราะห์ข้อมูล";
+    }
+    
+    return {
+        id: newId,
+        title: inputVal,
+        description: `คำอธิบายสกัดสำเร็จสำหรับ: "${inputVal}" โดยระบบทำการสร้างแบบจำลอง UX ของระบบ หน้าอินเตอร์เฟซผู้ใช้งาน กฎเกณฑ์ทางธุรกิจ และขอบข่าย API เบื้องต้น เพื่อนำไปปรับปรุงโครงสร้างของส่วนงานต่อไป`,
+        priority: "Medium",
+        status: "To Do",
+        group: group
+    };
+}
+
+function renderProposedCardPreview() {
+    if (!state.lastAiProposedCard) {
+        elements.aiCreatedCardPreview.classList.add("hidden");
+        elements.aiCreatedCardPreview.innerHTML = "";
+        return;
+    }
+    
+    const card = state.lastAiProposedCard;
+    const isNewGroup = card.group !== "Unassigned" && !state.groups.includes(card.group);
+    
+    const priorityClass = card.priority.toLowerCase();
+    const statusClass = card.status.toLowerCase().replace(/\s+/g, '-');
+    
+    const priorityText = card.priority === 'High' ? 'สูง' : (card.priority === 'Low' ? 'ต่ำ' : 'ปานกลาง');
+    const statusText = card.status === 'Done' ? 'เสร็จสิ้น' : (card.status === 'In Progress' ? 'กำลังทำ' : 'ยังไม่ได้เริ่ม');
+    const groupText = (card.group && card.group !== 'Unassigned') ? card.group : 'ยังไม่ได้จัดกลุ่ม';
+    
+    elements.aiCreatedCardPreview.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.75rem; color: var(--color-indigo); font-weight: bold; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i> แนะนำโดย AI (Preview)
+            </span>
+            <span style="font-family: monospace; font-weight: bold; color: var(--text-muted); font-size: 0.8rem;">${card.id}</span>
+        </div>
+        <h4 style="margin: 0 0 8px 0; font-size: 0.95rem; color: var(--text-main); font-weight: 600;">${card.title}</h4>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+            <span class="badge-priority ${priorityClass}" style="font-size: 0.7rem; padding: 2px 6px;">${priorityText}</span>
+            <span class="badge-status ${statusClass}" style="font-size: 0.7rem; padding: 2px 6px;">${statusText}</span>
+            <span class="badge-group" style="font-size: 0.7rem; padding: 2px 6px;">${groupText} ${isNewGroup ? '<span style="color: var(--color-cyan); font-size: 0.6rem; margin-left: 2px;">(ใหม่)</span>' : ''}</span>
+        </div>
+        <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.4; max-height: 100px; overflow-y: auto;">
+            ${card.description}
+        </p>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="btn-ai-preview-cancel" class="btn btn-secondary btn-small" style="font-size: 0.75rem; height: 28px; padding: 0 10px;">
+                ยกเลิก
+            </button>
+            <button id="btn-ai-preview-save" class="btn btn-primary btn-small" style="font-size: 0.75rem; height: 28px; padding: 0 10px;">
+                <i data-lucide="plus"></i> บันทึกเข้าระบบ
+            </button>
+        </div>
+    `;
+    
+    elements.aiCreatedCardPreview.classList.remove("hidden");
+    lucide.createIcons();
+    
+    // Bind actions
+    document.getElementById("btn-ai-preview-cancel").addEventListener("click", () => {
+        state.lastAiProposedCard = null;
+        renderProposedCardPreview();
+    });
+    
+    document.getElementById("btn-ai-preview-save").addEventListener("click", () => {
+        const savedCard = state.lastAiProposedCard;
+        if (savedCard) {
+            // Re-validate ID uniqueness in case another card was added
+            if (state.requirements.some(r => r.id === savedCard.id)) {
+                let maxNum = 0;
+                state.requirements.forEach(r => {
+                    const num = parseInt(r.id.replace(/\D/g, "")) || 0;
+                    if (num > maxNum) maxNum = num;
+                });
+                const prefix = state.isSurveyForm ? "RESP-" : "REQ-";
+                savedCard.id = `${prefix}${String(maxNum + 1).padStart(3, '0')}`;
+            }
+            
+            // Add custom group to list if new
+            if (savedCard.group !== "Unassigned" && !state.groups.includes(savedCard.group)) {
+                state.groups.push(savedCard.group);
+            }
+            
+            state.requirements.push(savedCard);
+            saveToLocalStorage();
+            showToast(`เพิ่มการ์ดความต้องการ ${savedCard.id} สำเร็จ!`, "success");
+            
+            state.lastAiProposedCard = null;
+            renderProposedCardPreview();
+            
+            // Clear inputs
+            elements.aiCreatorInput.value = "";
+            
+            // Refresh views
+            updateUI();
+        }
+    });
+}
+
 

@@ -15,7 +15,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Prompt:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Lucide Icons CDN -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
     
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -23,7 +23,7 @@
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="dark-theme">
+<body class="light-theme">
     <div class="app-container">
         <!-- Toast Notification Area -->
         <div id="toast-container" class="toast-container"></div>
@@ -371,7 +371,7 @@
                                 <i data-lucide="folder-plus"></i> สร้างกลุ่มใหม่
                             </button>
                             <button id="btn-auto-group" class="btn btn-indigo">
-                                <i data-lucide="wand2"></i> นำการจัดกลุ่มอัจฉริยะไปใช้
+                                <i data-lucide="wand-2"></i> นำการจัดกลุ่มอัจฉริยะไปใช้
                             </button>
                         </div>
                     </div>
@@ -435,6 +435,14 @@
                                     <div class="option-details">
                                         <h4>โครงสร้างข้อมูลออบเจกต์ (Raw JSON)</h4>
                                         <p>ข้อมูลจำแนกกลุ่มแบบลำดับชั้นสำหรับนักพัฒนาระบบนำไปเก็บในฐานข้อมูลหรือประมวลผล</p>
+                                    </div>
+                                </button>
+                                
+                                <button id="btn-export-html" class="export-option-btn" data-format="html">
+                                    <i data-lucide="file-code" class="text-pink"></i>
+                                    <div class="option-details">
+                                        <h4>เอกสารออกแบบเว็บหน้าเดียว (Standalone HTML Doc)</h4>
+                                        <p>เอกสาร SRS หน้าเว็บสำเร็จรูปพร้อมจัดแต่ง CSS หน้าจอสวยงามและพร้อมจัดพิมพ์เป็น PDF</p>
                                     </div>
                                 </button>
                             </div>
@@ -620,6 +628,24 @@
                                         <h4>สรุปผลสำรวจผู้ตอบ</h4>
                                         <p>สกัด Pain Points, Demographics และความกังวลผู้ตอบ (Interview X)</p>
                                     </button>
+                                </div>
+
+                                <!-- AI Requirement Creator Widget -->
+                                <div class="ai-creator-widget" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 16px; margin-bottom: 20px;">
+                                    <h4 style="display: flex; align-items: center; gap: 6px; font-size: 0.95rem; margin-bottom: 6px;">
+                                        <i data-lucide="plus-square" style="color: var(--color-cyan); width: 18px; height: 18px;"></i>
+                                        สร้างการ์ดข้อกำหนดใหม่ด้วย AI (AI Card Creator)
+                                    </h4>
+                                    <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 10px;">ระบุฟังก์ชันหรือฟีเจอร์ย่อยที่ต้องการเพิ่ม เพื่อให้ AI สกัดคำอธิบายและจัดหมวดหมู่ให้โดยอัตโนมัติ</p>
+                                    <div style="display: flex; gap: 10px;">
+                                        <input type="text" id="ai-creator-input" placeholder="เช่น 'ระบบล็อกอินด้วย OTP ทาง SMS' หรือ 'ระบบบันทึกคำตอบลงคลาวด์'" style="flex: 1; height: 38px; font-size: 0.85rem; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 0 12px; color: var(--text-main);">
+                                        <button id="btn-ai-create-card" class="btn btn-indigo" style="height: 38px; padding: 0 14px; white-space: nowrap;">
+                                            <i data-lucide="wand-2"></i> สร้างการ์ด
+                                        </button>
+                                    </div>
+                                    <div id="ai-created-card-preview" class="ai-preview-card-box hidden" style="margin-top: 12px; padding: 14px; border: 1px solid var(--border-color-hover); background: rgba(99, 102, 241, 0.03); border-radius: var(--radius-md); position: relative; animation: fadeIn 0.3s ease;">
+                                        <!-- Dynamic preview details will be injected here -->
+                                    </div>
                                 </div>
 
                                 <div class="ai-result-header">

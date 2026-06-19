@@ -14,9 +14,10 @@
    * **ระบบกรองข้อความแบบเรียลไทม์:** ค้นหาและคำนวณ Top 10 ใหม่ตามคำค้นหาได้ทันที
 5. **ระบบวิเคราะห์ระบบและห้องแชทจำลองเชิงลึกด้วย AI (Gemini AI Analyst):**
    * **เชื่อมต่อโมดูล Gemini 3.5 Flash:** ผูกระบบกับ Gemini API โดยป้อน Key ตรงเข้าเบราว์เซอร์ เพื่อดึงการทำงานภาษาธรรมชาติตามจริง
+   * **การสกัดการ์ดความต้องการใหม่ด้วย AI (AI Card Creator):** พิมพ์ไอเดียหรือความต้องการระบบอย่างสั้นเพื่อความสะดวกรวดเร็วเพื่อให้ AI สกัดโครงร่างการ์ดพร้อมจัดสรรกลุ่มระดับความสำคัญและบันทึกเข้าระบบ
    * **ฟังก์ชันสกัดระบบ (System Elicitation):** ปุ่มสกัด User Stories พร้อม Acceptance Criteria (Given-When-Then), ออกแบบสถาปัตยกรรมระบบและโครงสร้างฐานข้อมูล (Database Schema Spec), สรุปโมดูลจัดกลุ่มบอร์ด, และประมวลผลสรุป Demographics / Pain Points จากผลแบบสอบถาม Interview X
    * **ห้องแชทวิเคราะห์แบบมีบริบท (Context-Aware Chat Sandbox):** ซักถาม AI แบบเรียลไทม์โดยระบบจะส่งรายการความต้องการปัจจุบันในระบบทั้งหมดแนบเข้าไปในเบราว์เซอร์เปรียบเสมือนบริบทควบคุมเพื่อความแม่นยำสูง
-6. **การส่งออกรายงาน (Report Exports):** รองรับการดาวน์โหลดรายงานสรุปความต้องการฉบับสมบูรณ์ในรูปแบบ Markdown (`.md`) หรือเอกสารตาราง CSV
+6. **การส่งออกรายงาน (Report Exports):** รองรับการดาวน์โหลดรายงานสรุปความต้องการฉบับสมบูรณ์ในรูปแบบ Markdown (`.md`), เอกสารตาราง CSV หรือหน้าเอกสารเว็บสำเร็จรูปพร้อมสไตล์ชีตสวยงาม (**Standalone HTML Document**) ที่พร้อมจัดพิมพ์หรือบันทึกเป็น PDF ได้ทันที
 
 ---
 
@@ -52,8 +53,8 @@ npm run dev
 ---
 
 ## 📂 โครงสร้างโปรเจกต์ที่สำคัญ (Project Structure)
-* [index.html](file:///Users/mac/Desktop/workspace/interviewx_requriment/index.html) - ไฟล์โครงร่างหน้าเว็บหลัก
-* [app.js](file:///Users/mac/Desktop/workspace/interviewx_requriment/app.js) - ไฟล์ควบคุมลอจิกวิเคราะห์ ค้นหา จำแนกกลุ่ม และบันทึกข้อมูล
-* [style.css](file:///Users/mac/Desktop/workspace/interviewx_requriment/style.css) - ไฟล์สไตล์ชีตหลักระบบ Glassmorphism
-* [demo-data.js](file:///Users/mac/Desktop/workspace/interviewx_requriment/demo-data.js) - ข้อมูลแบบสอบถามสัมภาษณ์ 102 รายการที่สกัดมาจาก Excel
-* [SYSTEM_REQUIREMENTS.md](file:///Users/mac/Desktop/workspace/interviewx_requriment/SYSTEM_REQUIREMENTS.md) - เอกสารข้อกำหนดระบบ (SRS) ของ Interview X AI Simulator
+* [index.html](./index.html) - ไฟล์โครงร่างหน้าเว็บหลัก
+* [app.js](./app.js) - ไฟล์ควบคุมลอจิกวิเคราะห์ ค้นหา จำแนกกลุ่ม และบันทึกข้อมูล
+* [style.css](./style.css) - ไฟล์สไตล์ชีตหลักระบบ Glassmorphism
+* [demo-data.js](./demo-data.js) - ข้อมูลแบบสอบถามสัมภาษณ์ 102 รายการที่สกัดมาจาก Excel
+* [SYSTEM_REQUIREMENTS.md](./SYSTEM_REQUIREMENTS.md) - เอกสารข้อกำหนดระบบ (SRS) ของ Interview X AI Simulator
